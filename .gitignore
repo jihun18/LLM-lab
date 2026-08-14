@@ -1,0 +1,12 @@
+.venv/
+__pycache__/
+.pytest_cache/
+*.pyc
+.env
+benchmark-results/*
+wiki/Uploads/*
+!wiki/Uploads/.gitkeep
+.streamlit/
+*.log
+.DS_Store
+Thumbs.db
