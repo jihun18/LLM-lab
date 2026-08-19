@@ -1,14 +1,16 @@
 # REST API
 
-기본 주소: `http://127.0.0.1:8000`
+- FastAPI 기본 주소: `http://127.0.0.1:8000`
+- Flask 비교 서버 기본 주소: `http://127.0.0.1:5000`
 
-실행 중인 서버의 대화형 문서는 `/docs`, OpenAPI JSON은 `/openapi.json`에서 확인한다.
+아래 REST 경로는 FastAPI와 Flask가 공통으로 제공한다. FastAPI의 대화형 문서는
+`/docs`, OpenAPI JSON은 `/openapi.json`에서 확인한다.
 
 ## 엔드포인트 요약
 
 | Method | Path | 설명 |
 |---|---|---|
-| GET | `/health` | FastAPI와 Ollama 연결 상태 |
+| GET | `/health` | 실행 프레임워크와 Ollama 연결 상태 |
 | GET | `/models` | 설치된 Ollama 모델 목록 |
 | POST | `/chat` | 일반 비스트리밍 채팅 |
 | POST | `/chat/stream` | 일반 NDJSON 채팅 |
@@ -149,4 +151,3 @@ await fetch('/documents/upload', {
 | 422 | Pydantic 입력 검증 실패 |
 | 502 | Ollama 생성 요청 실패 |
 | 503 | Ollama 상태·모델 조회 실패 |
-

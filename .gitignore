@@ -7,6 +7,7 @@ benchmark-results/*
 wiki/Uploads/*
 !wiki/Uploads/.gitkeep
 .streamlit/
+wiki/.obsidian/
 *.log
 .DS_Store
 Thumbs.db

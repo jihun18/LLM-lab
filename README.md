@@ -8,7 +8,7 @@ privAI는 외부 LLM API 없이 Windows PC에서 Ollama 경량 모델을 실행�
 
 - Ollama의 `qwen3:0.6b`, `qwen3:1.7b` 로컬 추론
 - FastAPI REST API와 `privAI.html` 채팅 화면
-- Flask·Streamlit 비교 데모
+- 공통 Wiki RAG를 사용하는 Flask·Streamlit 비교 데모
 - NDJSON 기반 응답 표시
 - Obsidian Markdown Wiki 자동 색인
 - 저사양용 BM25 검색과 상대 점수 기반 검색 노이즈 제거
@@ -88,7 +88,12 @@ python flask_app.py
 streamlit run streamlit_app.py
 ```
 
-현재 제품 백엔드는 FastAPI, 빠른 실험 UI는 Streamlit, 최소 구현 비교군은 Flask로 사용합니다.
+세 앱은 같은 Wiki 검색·출처·검증 코어를 사용합니다. FastAPI는 제품 백엔드,
+Streamlit은 빠른 실험 UI, Flask는 웹 프레임워크 비교군으로 사용합니다.
+
+Flask와 Streamlit에서도 `Wiki 근거 사용`을 켜고 위의 지원금 질문을 입력하면
+FastAPI와 동일한 로컬 문서를 근거로 답합니다. 서버를 실행하기 전에 Ollama가
+실행 중인지 확인해야 합니다.
 
 ## 테스트와 벤치마크
 
@@ -102,7 +107,7 @@ python benchmark.py --max-cases 1
 python benchmark.py
 ```
 
-v0.1.0 기준 자동 테스트는 **24개**입니다. 벤치마크 결과는 로컬 `benchmark-results/`에 JSON·CSV·Markdown으로 생성되며 Git에는 포함되지 않습니다.
+현재 자동 테스트는 **25개**입니다. 벤치마크 결과는 로컬 `benchmark-results/`에 JSON·CSV·Markdown으로 생성되며 Git에는 포함되지 않습니다.
 
 ## 실험 결과 요약
 
@@ -128,12 +133,14 @@ local-llm-web-lab/
 │  ├─ ollama_client.py          # Ollama REST 클라이언트
 │  ├─ knowledge_base.py         # Markdown BM25 색인
 │  ├─ grounding.py              # 표·주장 검증 하니스
+│  ├─ rag_service.py            # 세 프레임워크 공통 RAG 흐름
 │  ├─ document_ingest.py        # MD·TXT·PDF 변환
 │  ├─ schemas.py                # API 입력 스키마
 │  └─ config.py                 # 저사양 기본 설정
 ├─ docs/                        # GitHub용 공식 문서
 ├─ wiki/                        # Obsidian 연구일지
 ├─ samples/                     # 공개 가능한 가상 문서
+├─ presentations/               # 세미나 발표자료
 └─ tests/                       # 자동 테스트
 ```
 

@@ -7,9 +7,9 @@ from fastapi.responses import FileResponse, StreamingResponse
 
 from core.config import settings
 from core.document_ingest import DocumentIngestError, DocumentIngestor, MAX_UPLOAD_BYTES
-from core.grounding import deterministic_metric_answer, verify_grounded_answer
-from core.knowledge_base import KnowledgeBase, build_grounded_prompt
+from core.knowledge_base import KnowledgeBase
 from core.ollama_client import OllamaClient, OllamaError
+from core.rag_service import rag_response, rag_stream_events
 from core.schemas import ChatRequest, RagRequest, SummarizeRequest
 
 
@@ -96,99 +96,34 @@ async def document_upload(request: Request) -> dict:
     return {"document": document, "knowledge": knowledge.reindex()}
 
 
-def source_payload(results) -> list[dict]:
-    return [
-        {
-            "source": result.source,
-            "heading": result.heading,
-            "score": result.score,
-            "excerpt": result.text[:240],
-        }
-        for result in results
-    ]
-
-
-def grounded_response(request: RagRequest, results) -> dict:
-    deterministic = deterministic_metric_answer(request.prompt, results)
-    if deterministic:
-        answer, verification = deterministic
-        return {
-            "model": "deterministic-table",
-            "answer": answer,
-            "elapsed_seconds": 0,
-            "tokens_per_second": None,
-            "eval_count": 0,
-            "verification": verification,
-        }
-
-    grounded_prompt = build_grounded_prompt(request.prompt, results)
-    response = client.chat(grounded_prompt, request.model, request.system)
-    verification = verify_grounded_answer(request.prompt, response["answer"], results)
-    return {**response, "verification": verification}
-
-
 @app.post("/rag/chat")
 def rag_chat(request: RagRequest) -> dict:
-    results = knowledge.search(request.prompt, request.top_k)
-    sources = source_payload(results)
-    if not results:
-        return {
-            "model": request.model,
-            "answer": "Wiki에서 관련 근거를 찾지 못했습니다.",
-            "sources": [],
-            "elapsed_seconds": 0,
-            "tokens_per_second": None,
-            "eval_count": 0,
-        }
     try:
-        response = grounded_response(request, results)
-        return {**response, "sources": sources}
+        return rag_response(
+            request.prompt,
+            request.model,
+            request.system,
+            request.top_k,
+            knowledge,
+            client,
+        )
     except OllamaError as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
 
 
 @app.post("/rag/chat/stream")
 def rag_chat_stream(request: RagRequest) -> StreamingResponse:
-    results = knowledge.search(request.prompt, request.top_k)
-    sources = source_payload(results)
-
     def generate():
-        yield json.dumps({"sources": sources}, ensure_ascii=False) + "\n"
-        if not results:
-            yield json.dumps(
-                {"done": False, "content": "Wiki에서 관련 근거를 찾지 못했습니다."},
-                ensure_ascii=False,
-            ) + "\n"
-            yield json.dumps(
-                {
-                    "done": True,
-                    "elapsed_seconds": 0,
-                    "tokens_per_second": None,
-                    "eval_count": 0,
-                },
-                ensure_ascii=False,
-            ) + "\n"
-            return
         try:
-            response = grounded_response(request, results)
-            yield json.dumps(
-                {
-                    "done": False,
-                    "content": response["answer"],
-                    "verification": response["verification"],
-                },
-                ensure_ascii=False,
-            ) + "\n"
-            yield json.dumps(
-                {
-                    "done": True,
-                    "elapsed_seconds": response["elapsed_seconds"],
-                    "tokens_per_second": response["tokens_per_second"],
-                    "eval_count": response["eval_count"],
-                    "verification": response["verification"],
-                },
-                ensure_ascii=False,
-            ) + "\n"
+            for event in rag_stream_events(
+                request.prompt,
+                request.model,
+                request.system,
+                request.top_k,
+                knowledge,
+                client,
+            ):
+                yield json.dumps(event, ensure_ascii=False) + "\n"
         except OllamaError as exc:
             yield json.dumps({"error": str(exc)}, ensure_ascii=False) + "\n"
 

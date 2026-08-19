@@ -4,19 +4,21 @@
 
 ```mermaid
 flowchart LR
-    U["사용자 브라우저"] --> F["FastAPI · privAI"]
-    F --> K["Markdown BM25 색인"]
+    U["사용자 브라우저"] --> A["FastAPI · Flask · Streamlit"]
+    A --> R["공통 RAG 서비스"]
+    R --> K["Markdown BM25 색인"]
     K --> W["Obsidian Wiki"]
     K --> D["업로드 변환 문서"]
-    F --> H["근거 검증 하니스"]
-    F --> O["Ollama REST API"]
+    R --> H["근거 검증 하니스"]
+    R --> O["Ollama REST API"]
     O --> M["qwen3 경량 모델"]
-    H --> F
-    M --> F
-    F --> U
+    H --> R
+    M --> R
+    R --> A
+    A --> U
 ```
 
-모든 주요 연결은 `127.0.0.1` 안에서 이뤄진다. 브라우저가 FastAPI에 질문을 보내고, FastAPI는 로컬 Wiki 검색과 Ollama 호출을 조정한다.
+모든 주요 연결은 `127.0.0.1` 안에서 이뤄진다. 세 프레임워크는 같은 공통 RAG 서비스를 통해 로컬 Wiki 검색과 Ollama 호출을 조정한다.
 
 ## 구성요소
 
@@ -41,6 +43,19 @@ flowchart LR
 - 문서 업로드와 목록
 - 요약 API
 - NDJSON 응답
+
+### 프레임워크 공통 RAG 서비스
+
+`core/rag_service.py`는 FastAPI·Flask·Streamlit이 같은 답변 규칙을 사용하게 한다.
+
+- Wiki 근거 검색과 출처 변환
+- 근거가 없을 때 추측 차단
+- 결정론적 표 답변 또는 Ollama 근거 기반 답변
+- 금액·날짜·단위 검증 결과 생성
+- 일반 응답과 NDJSON 이벤트 구성
+
+Flask는 공용 `privAI.html`에 필요한 RAG·문서 API를 제공하고, Streamlit은
+기본으로 `Wiki 근거 사용`을 켜서 이 서비스를 직접 호출한다.
 
 ### Ollama 클라이언트
 
@@ -140,4 +155,3 @@ flowchart TD
 - 기본 검색 결과 3개
 - 정적인 HTML UI
 - 확정 가능한 표 수치는 LLM 호출 생략
-
