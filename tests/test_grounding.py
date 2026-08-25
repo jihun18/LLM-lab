@@ -19,6 +19,15 @@ RESULT = SearchResult(
 | qwen3:1.7b | 7.205초 | 10.28 | 80.0 |""",
 )
 
+FOUR_B_RESULT = SearchResult(
+    source="4b.md",
+    heading="4B 전체 평가",
+    score=12.0,
+    text="""| 모델 | 문항 | 평균 시간 | 평균 속도 | 평균 자동점수 |
+|---|---:|---:|---:|---:|
+| qwen3:4b-instruct | 5 | 16.038초 | 5.00 token/s | 83.3 |""",
+)
+
 
 def test_extracts_labeled_table_facts():
     facts = extract_table_facts(RESULT)
@@ -49,6 +58,19 @@ def test_time_question_uses_seconds_column():
     assert "7.205 초" in answer
     assert "24.45" not in answer
     assert requested_unit(question) == "seconds"
+
+
+def test_average_speed_header_and_requested_model_are_selected():
+    question = "4B Instruct 전체 평가의 평균 생성속도는 몇 token/s야?"
+    answer, verification = deterministic_metric_answer(question, [FOUR_B_RESULT, RESULT])
+    assert "qwen3:4b-instruct가 5.00 token/s" in answer
+    assert "24.45" not in answer
+    assert verification["facts"][0]["source"] == "4b.md"
+
+
+def test_compound_question_is_not_reduced_to_one_metric():
+    question = "4B 평균 속도와 자동점수는 얼마고 7B 평가를 생략한 이유는?"
+    assert deterministic_metric_answer(question, [FOUR_B_RESULT]) is None
 
 
 def test_amount_and_date_claims_are_checked_against_source():

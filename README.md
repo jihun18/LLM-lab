@@ -105,9 +105,12 @@ python benchmark.py --max-cases 1
 
 # 두 모델·5문항 전체 평가
 python benchmark.py
+
+# 다음 실험: 비사고형 4B와 양자화 7B를 한 문항으로 먼저 비교
+python benchmark.py --models qwen3:4b-instruct qwen2.5:7b-instruct --max-cases 1
 ```
 
-현재 자동 테스트는 **25개**입니다. 벤치마크 결과는 로컬 `benchmark-results/`에 JSON·CSV·Markdown으로 생성되며 Git에는 포함되지 않습니다.
+현재 자동 테스트는 **29개**입니다. 벤치마크 결과는 로컬 `benchmark-results/`에 JSON·CSV·Markdown으로 생성되며 Git에는 포함되지 않습니다.
 
 ## 실험 결과 요약
 
@@ -115,8 +118,20 @@ python benchmark.py
 |---|---:|---:|---|
 | qwen3:0.6b | 2.814초 | 24.45 token/s | 연결 확인·빠른 반복 테스트 |
 | qwen3:1.7b | 7.205초 | 10.28 token/s | 사용자 데모·RAG 답변 |
+| qwen3:4b-instruct | 16.038초 | 5.00 token/s | 품질·성능 비교 후보 |
 
 자동점수는 두 모델 모두 80점이었지만, 사람 검토에서는 0.6B의 사실 오류와 지시 반복이 더 자주 관찰됐습니다. 자세한 조건과 한계는 `docs/EXPERIMENT-RESULTS.md`에 기록합니다.
+
+다음 모델 실험은 `qwen3:4b-instruct`를 먼저 확인한 뒤 `qwen2.5:7b-instruct`
+Q4_K_M을 실행한다. RAM 8GB 환경이므로 두 모델을 동시에 메모리에 올리지 않고,
+각 모델의 첫 문항 결과와 작업 관리자 메모리를 확인한 후 전체 평가 여부를 결정한다.
+
+주의: 현재 Ollama의 `qwen3:4b` 태그는 `qwen3:4b-thinking`과 같은 모델을
+가리키므로 짧은 일반 답변 벤치마크에는 `qwen3:4b-instruct`를 사용한다.
+
+7B 한계 시험에서는 `qwen2.5:7b-instruct`가 한 문항에 117.257초,
+3.16 token/s를 기록하고 중국어 해설을 섞어 출력했다. 이 PC에서는 실행 가능하지만
+데모 응답성과 한국어 지시 준수 기준을 통과하지 못해 전체 평가는 생략했다.
 
 ## 프로젝트 구조
 

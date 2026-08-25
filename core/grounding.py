@@ -38,7 +38,7 @@ def _cells(line: str) -> list[str]:
 
 def metric_unit(header: str) -> str | None:
     normalized = header.lower().replace(" ", "")
-    if "token/s" in normalized or "토큰/초" in normalized or "생성속도" in normalized:
+    if "token/s" in normalized or "토큰/초" in normalized or "속도" in normalized:
         return "token/s"
     if "시간" in normalized or "초" in normalized:
         return "seconds"
@@ -101,7 +101,21 @@ def metric_facts(question: str, results: list[SearchResult]) -> list[TableFact]:
     facts: list[TableFact] = []
     seen: set[tuple[str, str, float]] = set()
     for result in results:
-        for fact in extract_table_facts(result):
+        result_facts = extract_table_facts(result)
+        question_tokens = set(re.findall(r"[a-z0-9.]+", question.lower())) - {
+            "token",
+            "s",
+        }
+        matching_facts = [
+            fact
+            for fact in result_facts
+            if question_tokens
+            & set(re.findall(r"[a-z0-9.]+", fact.label.lower()))
+        ]
+        if matching_facts:
+            result_facts = matching_facts
+
+        for fact in result_facts:
             key = (fact.label.lower(), fact.unit, fact.value)
             if fact.unit == unit and key not in seen:
                 facts.append(fact)
@@ -114,6 +128,15 @@ def metric_facts(question: str, results: list[SearchResult]) -> list[TableFact]:
 def deterministic_metric_answer(
     question: str, results: list[SearchResult]
 ) -> tuple[str, dict] | None:
+    normalized = question.lower().replace(" ", "")
+    compound_markers = ("자동점수", "점수", "이유", "왜", "생략")
+    asks_speed = any(marker in normalized for marker in ("token/s", "토큰/초", "속도"))
+    asks_time = any(marker in normalized for marker in ("평균시간", "몇초"))
+    if any(marker in normalized for marker in compound_markers) or (
+        asks_speed and asks_time
+    ):
+        return None
+
     facts = metric_facts(question, results)
     if not facts:
         return None

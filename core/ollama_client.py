@@ -57,12 +57,18 @@ class OllamaClient:
         system: str | None,
         stream: bool,
     ) -> dict[str, Any]:
+        selected_model = model or settings.default_model
+        user_prompt = prompt
+        model_name = selected_model.lower()
+        if model_name.split(":", 1)[0] == "qwen3" and "instruct" not in model_name:
+            user_prompt = f"{prompt.rstrip()}\n\n/no_think"
+
         messages: list[dict[str, str]] = []
         if system:
             messages.append({"role": "system", "content": system})
-        messages.append({"role": "user", "content": prompt})
+        messages.append({"role": "user", "content": user_prompt})
         return {
-            "model": model or settings.default_model,
+            "model": selected_model,
             "messages": messages,
             "stream": stream,
             "think": False,
@@ -140,4 +146,3 @@ class OllamaClient:
                             }
         except (httpx.HTTPError, json.JSONDecodeError) as exc:
             raise OllamaError(f"Ollama 스트리밍 요청 실패: {exc}") from exc
-

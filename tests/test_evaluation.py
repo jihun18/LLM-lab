@@ -3,6 +3,7 @@ from evaluation import korean_ratio, numbered_item_count, score_response, senten
 
 def test_text_metrics():
     assert korean_ratio("한국어 문장입니다.") == 1.0
+    assert korean_ratio("한국어回答") == 3 / 5
     assert sentence_count("첫 문장입니다. 두 번째 문장입니다.") == 2
     assert sentence_count("1. 첫 문장입니다.\n2. 두 번째 문장입니다.") == 2
     assert numbered_item_count("1. 로컬 처리\n2. 암호화\n3. 접근 제어") == 3

@@ -7,7 +7,9 @@ benchmark-results/*
 wiki/Uploads/*
 !wiki/Uploads/.gitkeep
 .streamlit/
+.pptx-work/
 wiki/.obsidian/
 *.log
 .DS_Store
 Thumbs.db
+~$*.pptx

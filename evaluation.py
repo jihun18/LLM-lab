@@ -5,10 +5,9 @@ import re
 
 
 def korean_ratio(text: str) -> float:
-    """Return the share of Hangul among Hangul and Latin letters."""
+    """Return the share of Hangul among all alphabetic characters."""
     hangul = len(re.findall(r"[가-힣]", text))
-    latin = len(re.findall(r"[A-Za-z]", text))
-    total = hangul + latin
+    total = sum(1 for character in text if character.isalpha())
     return hangul / total if total else 0.0
 
 
