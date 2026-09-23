@@ -80,6 +80,8 @@ POST /rag/chat
   "verification": {
     "passed": true,
     "method": "structured_claim_verification",
+    "display_label": "금액·날짜·단위 검증 통과",
+    "claim_types": ["amount", "date"],
     "supported_claims": ["월 10만원", "2026년 9월 30일"],
     "unsupported_claims": []
   }
@@ -91,6 +93,10 @@ POST /rag/chat
 - `true`: 현재 검증 규칙 범위에서 근거와 일치
 - `false`: 근거에서 찾지 못한 구조화 값이 존재
 - `null`: 자동 대조 대상이 없어 사람 의미 검토 필요
+
+`display_label`은 화면에 표시할 검증 범위를 나타낸다. 표에서 직접 찾은 값은
+`표 수치 검증 통과`, 지원금과 마감일은 `금액·날짜·단위 검증 통과`, 시간·속도·
+용량 같은 일반 벤치마크 값은 `수치 근거 검증 통과`로 구분한다.
 
 ## 스트리밍 형식
 

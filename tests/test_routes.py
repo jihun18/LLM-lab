@@ -23,7 +23,9 @@ def test_fastapi_exposes_expected_routes(monkeypatch):
     assert test_client.get("/models").status_code == 200
     assert test_client.get("/knowledge/status").status_code == 200
     assert test_client.get("/documents").status_code == 200
-    assert test_client.get("/").status_code == 200
+    home = test_client.get("/")
+    assert home.status_code == 200
+    assert "no-store" in home.headers["cache-control"]
 
 
 def test_flask_exposes_expected_routes(monkeypatch):
@@ -42,7 +44,9 @@ def test_flask_exposes_expected_routes(monkeypatch):
     assert test_client.get("/models").status_code == 200
     assert test_client.get("/knowledge/status").status_code == 200
     assert test_client.get("/documents").status_code == 200
-    assert test_client.get("/").status_code == 200
+    home = test_client.get("/")
+    assert home.status_code == 200
+    assert "no-store" in home.headers["cache-control"]
 
 
 def test_flask_rag_uses_local_wiki(monkeypatch, tmp_path):
@@ -60,7 +64,7 @@ def test_flask_rag_uses_local_wiki(monkeypatch, tmp_path):
         lambda prompt, model, system: {
             "model": model,
             "answer": "청년 AI 개발 지원금은 월 10만원이며 신청 마감일은 "
-            "2026년 9월 30일입니다.",
+            "2026년 9월 30일입니다.\n[출처: policy.md#지원정책]",
             "elapsed_seconds": 0.1,
             "tokens_per_second": 10.0,
             "eval_count": 10,

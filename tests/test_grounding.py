@@ -7,6 +7,7 @@ from core.grounding import (
     verify_structured_claims,
 )
 from core.knowledge_base import SearchResult
+from core.rag_service import validate_source_citations
 
 
 RESULT = SearchResult(
@@ -83,7 +84,25 @@ def test_amount_and_date_claims_are_checked_against_source():
     answer = "지원금은 월 10만원이고 마감일은 2026년 9월 30일입니다."
     verification = verify_grounded_answer("지원금과 마감일은?", answer, [result])
     assert verification["passed"] is True
+    assert verification["display_label"] == "금액·날짜·단위 검증 통과"
+    assert verification["claim_types"] == ["amount", "date"]
     assert verification["supported_claims"] == ["2026년 9월 30일", "월 10만원"]
+
+
+def test_benchmark_metrics_use_numeric_verification_label():
+    result = SearchResult(
+        source="benchmark.md",
+        heading="16GB 결과",
+        text="7B 평균 응답시간은 28.539초이고 평균 생성속도는 3.80 token/s다.",
+        score=5.0,
+    )
+    verification = verify_structured_claims(
+        "7B 평균 응답시간은 28.539초이고 평균 생성속도는 3.80 token/s입니다.",
+        [result],
+    )
+    assert verification["passed"] is True
+    assert verification["display_label"] == "수치 근거 검증 통과"
+    assert verification["claim_types"] == ["metric"]
 
 
 def test_unsupported_amount_fails_verification():
@@ -97,3 +116,34 @@ def test_general_sentence_is_not_overstated_as_verified():
     verification = verify_structured_claims("FastAPI가 주력 백엔드입니다.", [RESULT])
     assert verification["passed"] is None
     assert verification["method"] == "source_attached_semantic_review_needed"
+
+
+def test_placeholder_source_is_removed_from_abstention():
+    answer, verification = validate_source_citations(
+        "Wiki에서 근거를 찾지 못했습니다.\n[출처: 파일명#제목]",
+        [RESULT],
+    )
+    assert answer == "Wiki에서 근거를 찾지 못했습니다."
+    assert verification["method"] == "model_abstained"
+
+
+def test_unretrieved_source_is_blocked():
+    answer, verification = validate_source_citations(
+        "답변입니다.\n[출처: other.md#다른 문서]",
+        [RESULT],
+    )
+    assert "차단했습니다" in answer
+    assert verification["method"] == "invalid_source_citation"
+
+
+def test_missing_citation_gets_primary_retrieved_source():
+    answer, verification = validate_source_citations("근거 기반 답변입니다.", [RESULT])
+    assert answer.endswith("[출처: benchmark.md#요약]")
+    assert verification is None
+
+
+def test_retrieved_source_citation_is_allowed():
+    answer = "답변입니다.\n출처: [출처: benchmark.md#요약]"
+    checked, verification = validate_source_citations(answer, [RESULT])
+    assert checked == "답변입니다.\n[출처: benchmark.md#요약]"
+    assert verification is None

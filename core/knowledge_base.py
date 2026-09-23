@@ -9,10 +9,67 @@ import re
 
 TOKEN_PATTERN = re.compile(r"[가-힣]+|[a-z0-9]+", re.IGNORECASE)
 HEADING_PATTERN = re.compile(r"^(#{1,6})\s+(.+?)\s*$")
+STANDALONE_KOREAN_PARTICLES = {
+    "은",
+    "는",
+    "이",
+    "가",
+    "을",
+    "를",
+    "와",
+    "과",
+    "의",
+    "에",
+    "도",
+    "만",
+    "로",
+}
+KOREAN_SUFFIXES = (
+    "으로부터",
+    "에게서",
+    "에서는",
+    "으로는",
+    "에서도",
+    "에게",
+    "에서",
+    "으로",
+    "로는",
+    "에는",
+    "와는",
+    "과는",
+    "이나",
+    "나",
+    "은",
+    "는",
+    "이",
+    "가",
+    "을",
+    "를",
+    "와",
+    "과",
+    "의",
+    "에",
+    "도",
+    "만",
+    "로",
+)
 
 
 def tokenize(text: str) -> list[str]:
-    return [token.lower() for token in TOKEN_PATTERN.findall(text)]
+    tokens: list[str] = []
+    for raw_token in TOKEN_PATTERN.findall(text):
+        token = raw_token.lower()
+        if token in STANDALONE_KOREAN_PARTICLES:
+            continue
+        tokens.append(token)
+        if re.fullmatch(r"[가-힣]+", token):
+            for suffix in KOREAN_SUFFIXES:
+                if token.endswith(suffix) and len(token) >= len(suffix) + 2:
+                    normalized = token[: -len(suffix)]
+                    if normalized not in tokens:
+                        tokens.append(normalized)
+                    break
+    return tokens
 
 
 @dataclass
@@ -158,10 +215,14 @@ def build_grounded_prompt(question: str, results: list[SearchResult]) -> str:
             f"[근거 {index}: {result.source}#{result.heading}]\n{result.text}"
         )
     context_text = "\n\n".join(contexts)
+    allowed_sources = "\n".join(
+        f"- [출처: {result.source}#{result.heading}]" for result in results
+    )
     return (
         "아래 근거에 있는 내용만 사용하여 질문에 한국어로 답하세요. "
         "근거에 답이 없으면 'Wiki에서 근거를 찾지 못했습니다.'라고 답하세요. "
-        "추측하거나 새로운 사실을 만들지 말고 마지막 줄에 사용한 근거를 "
-        "[출처: 파일명#제목] 형식으로 표시하세요.\n\n"
+        "추측하거나 새로운 사실을 만들지 말고 마지막 줄에는 아래 허용 출처 중 "
+        "실제로 사용한 항목을 정확히 표시하세요.\n"
+        f"[허용 출처]\n{allowed_sources}\n\n"
         f"{context_text}\n\n[질문]\n{question}"
     )

@@ -6,7 +6,7 @@ privAI는 외부 LLM API 없이 Windows PC에서 Ollama 경량 모델을 실행�
 
 ## 현재 구현된 기능
 
-- Ollama의 `qwen3:0.6b`, `qwen3:1.7b` 로컬 추론
+- Ollama의 1.7B·4B Instruct·양자화 7B Instruct 로컬 추론
 - FastAPI REST API와 `privAI.html` 채팅 화면
 - 공통 Wiki RAG를 사용하는 Flask·Streamlit 비교 데모
 - NDJSON 기반 응답 표시
@@ -25,7 +25,7 @@ privAI는 외부 LLM API 없이 Windows PC에서 Ollama 경량 모델을 실행�
 |---|---|
 | OS | Windows 11 Pro |
 | CPU | Intel Core i3-7100 3.90GHz |
-| RAM | 8GB |
+| RAM | 16GB (초기 기준 8GB) |
 | GPU | Intel HD Graphics 630 |
 | Python | 3.12.10 |
 | 추론 | Ollama CPU 중심 추론 |
@@ -37,8 +37,9 @@ privAI는 외부 LLM API 없이 Windows PC에서 Ollama 경량 모델을 실행�
 ### 1. Ollama 모델 준비
 
 ```powershell
-& "$env:LOCALAPPDATA\Programs\Ollama\ollama.exe" pull qwen3:0.6b
 & "$env:LOCALAPPDATA\Programs\Ollama\ollama.exe" pull qwen3:1.7b
+& "$env:LOCALAPPDATA\Programs\Ollama\ollama.exe" pull qwen3:4b-instruct
+& "$env:LOCALAPPDATA\Programs\Ollama\ollama.exe" pull qwen2.5:7b-instruct
 ```
 
 ### 2. Python 환경 준비
@@ -98,7 +99,7 @@ FastAPI와 동일한 로컬 문서를 근거로 답합니다. 서버를 실행�
 ## 테스트와 벤치마크
 
 ```powershell
-pytest -q
+python -m pytest -q
 
 # 두 모델에서 첫 문항만 빠르게 실행
 python benchmark.py --max-cases 1
@@ -106,32 +107,30 @@ python benchmark.py --max-cases 1
 # 두 모델·5문항 전체 평가
 python benchmark.py
 
-# 다음 실험: 비사고형 4B와 양자화 7B를 한 문항으로 먼저 비교
-python benchmark.py --models qwen3:4b-instruct qwen2.5:7b-instruct --max-cases 1
+# 1.7B·4B·양자화 7B 전체 비교
+python benchmark.py --models qwen3:1.7b qwen3:4b-instruct qwen2.5:7b-instruct
 ```
 
-현재 자동 테스트는 **29개**입니다. 벤치마크 결과는 로컬 `benchmark-results/`에 JSON·CSV·Markdown으로 생성되며 Git에는 포함되지 않습니다.
+현재 자동 테스트는 **35개**입니다. 벤치마크 결과는 로컬 `benchmark-results/`에 JSON·CSV·Markdown으로 생성되며 Git에는 포함되지 않습니다.
 
 ## 실험 결과 요약
 
 | 모델 | 평균 시간 | 평균 생성속도 | 현재 역할 |
 |---|---:|---:|---|
-| qwen3:0.6b | 2.814초 | 24.45 token/s | 연결 확인·빠른 반복 테스트 |
-| qwen3:1.7b | 7.205초 | 10.28 token/s | 사용자 데모·RAG 답변 |
-| qwen3:4b-instruct | 16.038초 | 5.00 token/s | 품질·성능 비교 후보 |
+| qwen3:1.7b | 7.959초 | 13.99 token/s | 현재 기본 데모·빠른 RAG |
+| qwen3:4b-instruct | 16.034초 | 6.80 token/s | 균형 모드 후보 |
+| qwen2.5:7b-instruct Q4_K_M | 28.539초 | 3.80 token/s | 정밀 모드 후보 |
 
-자동점수는 두 모델 모두 80점이었지만, 사람 검토에서는 0.6B의 사실 오류와 지시 반복이 더 자주 관찰됐습니다. 자세한 조건과 한계는 `docs/EXPERIMENT-RESULTS.md`에 기록합니다.
-
-다음 모델 실험은 `qwen3:4b-instruct`를 먼저 확인한 뒤 `qwen2.5:7b-instruct`
-Q4_K_M을 실행한다. RAM 8GB 환경이므로 두 모델을 동시에 메모리에 올리지 않고,
-각 모델의 첫 문항 결과와 작업 관리자 메모리를 확인한 후 전체 평가 여부를 결정한다.
+16GB 환경의 5문항 자동점수는 각각 80.0, 83.3, 90.0이었습니다. 자동점수는
+형식과 핵심어 점수이며 사실성 점수가 아닙니다. 7B는 16GB에서 안정적으로 실행됐지만
+4B보다 느리고 사람 검토 사실성이 뚜렷하게 우수하지 않아 기본 모델로 채택하지 않았습니다.
 
 주의: 현재 Ollama의 `qwen3:4b` 태그는 `qwen3:4b-thinking`과 같은 모델을
 가리키므로 짧은 일반 답변 벤치마크에는 `qwen3:4b-instruct`를 사용한다.
 
-7B 한계 시험에서는 `qwen2.5:7b-instruct`가 한 문항에 117.257초,
-3.16 token/s를 기록하고 중국어 해설을 섞어 출력했다. 이 PC에서는 실행 가능하지만
-데모 응답성과 한국어 지시 준수 기준을 통과하지 못해 전체 평가는 생략했다.
+초기 8GB 한계 시험에서는 7B 첫 문항이 117.257초였지만, 16GB 증설 후 전체
+5문항을 평균 28.539초로 완료했습니다. 콜드 런은 43.984초, 웜 런은 19.415초로
+모델 적재 상태가 전체 대기시간에 큰 영향을 줍니다.
 
 ## 프로젝트 구조
 

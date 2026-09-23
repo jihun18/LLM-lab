@@ -67,9 +67,16 @@ if prompt := st.chat_input("질문을 입력하세요"):
                             st.caption(f"{source['source']}#{source['heading']}")
                 verification = result.get("verification") or {}
                 if verification.get("passed") is True:
-                    st.success("근거 검증 통과")
+                    st.success(verification.get("display_label", "근거 검증 통과"))
                 elif verification.get("passed") is False:
                     st.warning("근거를 찾지 못했거나 검증을 통과하지 못했습니다.")
+                else:
+                    st.info(
+                        verification.get(
+                            "display_label",
+                            "출처 연결됨 · 문장 의미는 사람 검토 필요",
+                        )
+                    )
                 st.caption(
                     f"{result['elapsed_seconds']}초 · "
                     f"{result['tokens_per_second'] or '-'} token/s"

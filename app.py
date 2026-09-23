@@ -27,7 +27,13 @@ documents = DocumentIngestor(ROOT / "wiki")
 
 @app.get("/", include_in_schema=False)
 def home() -> FileResponse:
-    return FileResponse(ROOT / "privAI.html")
+    return FileResponse(
+        ROOT / "privAI.html",
+        headers={
+            "Cache-Control": "no-store, max-age=0",
+            "Pragma": "no-cache",
+        },
+    )
 
 
 @app.get("/health")

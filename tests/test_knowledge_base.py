@@ -17,7 +17,10 @@ def test_markdown_index_and_search(tmp_path: Path):
     assert status["chunks_indexed"] == 2
     assert results[0].heading == "시스템 사양"
     assert "8GB" in results[0].text
-    assert "[근거 1:" in build_grounded_prompt("RAM은?", results)
+    prompt = build_grounded_prompt("RAM은?", results)
+    assert "[근거 1:" in prompt
+    assert "[출처: system.md#시스템 사양]" in prompt
+    assert "[출처: 파일명#제목]" not in prompt
 
 
 def test_search_without_match_returns_empty(tmp_path: Path):
@@ -25,7 +28,28 @@ def test_search_without_match_returns_empty(tmp_path: Path):
     knowledge = KnowledgeBase(tmp_path)
     knowledge.reindex()
     assert knowledge.search("양자컴퓨터") == []
-    assert tokenize("FastAPI와 로컬 AI") == ["fastapi", "와", "로컬", "ai"]
+    assert tokenize("FastAPI와 로컬 AI") == ["fastapi", "로컬", "ai"]
+
+
+def test_korean_particles_share_a_search_term(tmp_path: Path):
+    (tmp_path / "model.md").write_text(
+        "# 7B를 PrivAI 기본 모델로 사용하지 않는 이유\n\n"
+        "7B 모델은 평균 응답시간이 길어 기본 모델로 사용하지 않는다.",
+        encoding="utf-8",
+    )
+    (tmp_path / "noise.md").write_text(
+        "# 로컬 RAG\n\nWiki 근거와 사용자 질문을 연결한다.",
+        encoding="utf-8",
+    )
+    knowledge = KnowledgeBase(tmp_path)
+    knowledge.reindex()
+
+    results = knowledge.search(
+        "7B 모델을 PrivAI 기본 모델로 사용하지 않는 이유를 근거와 함께 설명해줘."
+    )
+
+    assert results[0].source == "model.md"
+    assert "모델" in tokenize("모델을 모델로 모델은")
 
 
 def test_code_block_examples_are_not_indexed(tmp_path: Path):

@@ -16,6 +16,8 @@ STRUCTURED_PATTERNS = [
         re.IGNORECASE,
     ),
 ]
+DATE_CLAIM_PATTERN = re.compile(r"\d{4}\s*년\s*\d{1,2}\s*월\s*\d{1,2}\s*일")
+AMOUNT_CLAIM_PATTERN = re.compile(r"(?:조원|억원|만원|천원|원)", re.IGNORECASE)
 
 
 @dataclass(frozen=True)
@@ -157,6 +159,7 @@ def deterministic_metric_answer(
     verification = {
         "passed": True,
         "method": "deterministic_table_extraction",
+        "display_label": "표 수치 검증 통과",
         "requested_unit": unit,
         "facts": [fact.to_dict() for fact in facts],
         "issues": [],
@@ -194,6 +197,7 @@ def verify_metric_answer(
     return {
         "passed": not issues,
         "method": "metric_unit_validation",
+        "display_label": "수치 근거 검증 통과",
         "requested_unit": unit,
         "facts": [fact.to_dict() for fact in facts],
         "issues": issues,
@@ -217,12 +221,25 @@ def extract_structured_claims(text: str) -> list[str]:
     return claims
 
 
+def structured_claim_types(claims: list[str]) -> list[str]:
+    types: set[str] = set()
+    for claim in claims:
+        if DATE_CLAIM_PATTERN.fullmatch(claim):
+            types.add("date")
+        elif AMOUNT_CLAIM_PATTERN.search(claim):
+            types.add("amount")
+        else:
+            types.add("metric")
+    return sorted(types)
+
+
 def verify_structured_claims(answer: str, results: list[SearchResult]) -> dict:
     claims = extract_structured_claims(answer)
     if not claims:
         return {
             "passed": None,
             "method": "source_attached_semantic_review_needed",
+            "display_label": "출처 연결됨 · 문장 의미는 사람 검토 필요",
             "claims": [],
             "supported_claims": [],
             "unsupported_claims": [],
@@ -232,11 +249,18 @@ def verify_structured_claims(answer: str, results: list[SearchResult]) -> dict:
     evidence = _normalized_claim("\n".join(result.text for result in results))
     supported = [claim for claim in claims if _normalized_claim(claim) in evidence]
     unsupported = [claim for claim in claims if _normalized_claim(claim) not in evidence]
+    claim_types = structured_claim_types(claims)
     issues = [f"근거 원문에서 확인되지 않은 값: {claim}" for claim in unsupported]
     return {
         "passed": not unsupported,
         "method": "structured_claim_verification",
+        "display_label": (
+            "수치 근거 검증 통과"
+            if "metric" in claim_types
+            else "금액·날짜·단위 검증 통과"
+        ),
         "claims": claims,
+        "claim_types": claim_types,
         "supported_claims": supported,
         "unsupported_claims": unsupported,
         "issues": issues,

@@ -21,7 +21,10 @@ documents = DocumentIngestor(ROOT / "wiki")
 
 @app.get("/")
 def home():
-    return send_file(ROOT / "privAI.html")
+    response = send_file(ROOT / "privAI.html")
+    response.headers["Cache-Control"] = "no-store, max-age=0"
+    response.headers["Pragma"] = "no-cache"
+    return response
 
 
 @app.get("/health")
