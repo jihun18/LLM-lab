@@ -142,8 +142,31 @@ def test_missing_citation_gets_primary_retrieved_source():
     assert verification is None
 
 
+def test_substantive_answer_drops_accidental_no_evidence_sentence():
+    detailed = SearchResult(
+        source="states.md",
+        heading="화면 상태",
+        text="표 수치 검증 통과와 검증 실패를 구분한다.",
+        score=4.0,
+    )
+    unrelated = SearchResult(
+        source="other.md", heading="기타", text="일반 설명", score=5.0
+    )
+    answer, verification = validate_source_citations(
+        "표 수치 검증 통과와 검증 실패를 구분합니다.\n"
+        "Wiki에서 근거를 찾지 못했습니다.",
+        [unrelated, detailed],
+    )
+    assert "찾지 못했습니다" not in answer
+    assert answer.endswith("[출처: states.md#화면 상태]")
+    assert verification is None
+
+
 def test_retrieved_source_citation_is_allowed():
-    answer = "답변입니다.\n출처: [출처: benchmark.md#요약]"
+    answer = (
+        "답변입니다.\n근거: [출처: benchmark.md#요약]\n"
+        "[출처: benchmark.md#요약]"
+    )
     checked, verification = validate_source_citations(answer, [RESULT])
     assert checked == "답변입니다.\n[출처: benchmark.md#요약]"
     assert verification is None

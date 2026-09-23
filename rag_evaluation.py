@@ -23,6 +23,21 @@ def load_cases(path: Path) -> list[dict[str, Any]]:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+def select_cases(
+    cases: list[dict[str, Any]], case_ids: list[str] | None, max_cases: int | None
+) -> list[dict[str, Any]]:
+    selected = cases
+    if case_ids:
+        requested = set(case_ids)
+        selected = [case for case in cases if case["id"] in requested]
+        missing = requested - {case["id"] for case in selected}
+        if missing:
+            raise ValueError(f"존재하지 않는 평가 문항: {', '.join(sorted(missing))}")
+    if max_cases is not None:
+        selected = selected[: max(max_cases, 0)]
+    return selected
+
+
 def _normalized(text: str) -> str:
     return re.sub(r"[\s,]", "", text).lower()
 
@@ -233,13 +248,17 @@ def main() -> None:
     parser.add_argument("--models", nargs="+", default=DEFAULT_MODELS)
     parser.add_argument("--cases", default=str(ROOT / "rag_evaluation_cases.json"))
     parser.add_argument("--max-cases", type=int, default=None)
+    parser.add_argument("--case-ids", nargs="+", default=None)
     parser.add_argument("--top-k", type=int, default=3)
     parser.add_argument("--retrieval-only", action="store_true")
     args = parser.parse_args()
 
-    cases = load_cases(Path(args.cases))
-    if args.max_cases is not None:
-        cases = cases[: max(args.max_cases, 0)]
+    try:
+        cases = select_cases(
+            load_cases(Path(args.cases)), args.case_ids, args.max_cases
+        )
+    except ValueError as exc:
+        raise SystemExit(str(exc)) from exc
     if not cases:
         raise SystemExit("실행할 RAG 평가 문항이 없습니다.")
 

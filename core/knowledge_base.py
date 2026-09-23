@@ -242,6 +242,10 @@ class KnowledgeBase:
                 and chunk.latest_date == self.latest_date
             ):
                 score *= 1.5
+            if any(marker in query for marker in ("이유", "까닭", "왜")) and any(
+                marker in chunk.heading for marker in ("이유", "원인", "배경")
+            ):
+                score *= 1.5
             if score > 0:
                 scored.append(
                     SearchResult(
@@ -272,6 +276,9 @@ def build_grounded_prompt(question: str, results: list[SearchResult]) -> str:
     return (
         "아래 근거에 있는 내용만 사용하여 질문에 한국어로 답하세요. "
         "근거에 답이 없으면 'Wiki에서 근거를 찾지 못했습니다.'라고 답하세요. "
+        "근거를 사용해 답변했다면 근거 없음 문장을 추가하지 마세요. "
+        "질문이 절차나 순서를 요구하면 근거의 단계와 핵심 용어를 빠뜨리지 마세요. "
+        "수치 비교가 이유라면 비교 대상의 수치와 단위를 함께 적으세요. "
         "추측하거나 새로운 사실을 만들지 말고 마지막 줄에는 아래 허용 출처 중 "
         "실제로 사용한 항목을 정확히 표시하세요.\n"
         f"[허용 출처]\n{allowed_sources}\n\n"

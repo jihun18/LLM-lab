@@ -130,3 +130,17 @@ def test_long_query_with_one_weak_match_returns_no_evidence(tmp_path: Path):
     knowledge = KnowledgeBase(tmp_path)
     knowledge.reindex()
     assert knowledge.search("구내식당 다음 월요일 점심 메뉴는 뭐야") == []
+
+
+def test_reason_question_boosts_reason_heading(tmp_path: Path):
+    (tmp_path / "summary.md").write_text(
+        "# 시스템 요약\n\n7B를 기본 모델로 사용하지 않는다.", encoding="utf-8"
+    )
+    (tmp_path / "reason.md").write_text(
+        "# 7B를 기본 모델로 사용하지 않는 이유\n\n응답시간이 길기 때문이다.",
+        encoding="utf-8",
+    )
+    knowledge = KnowledgeBase(tmp_path)
+    knowledge.reindex()
+    results = knowledge.search("7B를 기본 모델로 삼지 않은 까닭은 뭐야")
+    assert results[0].source == "reason.md"

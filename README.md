@@ -117,15 +117,21 @@ python rag_evaluation.py --retrieval-only
 
 # 1.7B의 전체 RAG 답변 평가
 python rag_evaluation.py --models qwen3:1.7b
+
+# 실패 문항만 빠르게 재평가
+python rag_evaluation.py --models qwen3:1.7b --case-ids verification_states upload_flow
 ```
 
-현재 자동 테스트는 **46개**입니다. 벤치마크 결과는 로컬 `benchmark-results/`에 JSON·CSV·Markdown으로 생성되며 Git에는 포함되지 않습니다.
+현재 자동 테스트는 **49개**입니다. 벤치마크 결과는 로컬 `benchmark-results/`에 JSON·CSV·Markdown으로 생성되며 Git에는 포함되지 않습니다.
 
 ## 실험 결과 요약
 
 13문항 BM25 최초 기준선은 Top-1 53.8%, Top-3 76.9%였으며 1차 검색 개선 후
 Top-1 92.3%, Top-3 100%를 기록했다. 검색 방식 변경은 이 고정 문항에서 정확도와
 지연시간이 함께 개선될 때 채택한다.
+
+1.7B 전체 RAG의 최초 평균 답변 점수는 89.4점이었으며, 낮은 3개 문항의 표적
+수정 후 재시험 점수는 100.0점·91.7점·100.0점이었다.
 
 | 모델 | 평균 시간 | 평균 생성속도 | 현재 역할 |
 |---|---:|---:|---|

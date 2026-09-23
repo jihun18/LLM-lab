@@ -4,7 +4,7 @@ from collections.abc import Iterator
 import re
 
 from .grounding import deterministic_metric_answer, verify_grounded_answer
-from .knowledge_base import KnowledgeBase, SearchResult, build_grounded_prompt
+from .knowledge_base import KnowledgeBase, SearchResult, build_grounded_prompt, tokenize
 from .ollama_client import OllamaClient
 
 
@@ -19,15 +19,31 @@ BLOCKED_SOURCE_ANSWER = (
 def validate_source_citations(
     answer: str, results: list[SearchResult]
 ) -> tuple[str, dict | None]:
-    answer = re.sub(r"(?m)^\s*출처\s*:\s*(?=\[출처:)", "", answer)
-    citations = SOURCE_CITATION_PATTERN.findall(answer)
+    answer = re.sub(r"(?m)^\s*(?:출처|근거)\s*:\s*(?=\[출처:)", "", answer)
+    seen_citations: set[str] = set()
+
+    def keep_first_citation(match: re.Match) -> str:
+        normalized = match.group(0).lower()
+        if normalized in seen_citations:
+            return ""
+        seen_citations.add(normalized)
+        return match.group(0)
+
+    answer = SOURCE_CITATION_PATTERN.sub(keep_first_citation, answer)
+    answer = re.sub(r"\n{3,}", "\n\n", answer).strip()
     if NO_EVIDENCE_ANSWER in answer:
         sanitized = SOURCE_CITATION_PATTERN.sub("", answer).strip()
-        return sanitized, {
-            "passed": False,
-            "method": "model_abstained",
-            "issues": ["검색 결과에서 질문의 답을 뒷받침하는 근거를 찾지 못했습니다."],
-        }
+        substantive = sanitized.replace(NO_EVIDENCE_ANSWER, "").strip()
+        if len(tokenize(substantive)) >= 3:
+            answer = substantive
+        else:
+            return sanitized, {
+                "passed": False,
+                "method": "model_abstained",
+                "issues": ["검색 결과에서 질문의 답을 뒷받침하는 근거를 찾지 못했습니다."],
+            }
+
+    citations = SOURCE_CITATION_PATTERN.findall(answer)
 
     expected = {
         (result.source.strip().lower(), result.heading.strip().lower())
@@ -39,7 +55,13 @@ def validate_source_citations(
     }
     if not supplied:
         if results:
-            primary = results[0]
+            answer_tokens = set(tokenize(answer))
+            primary = max(
+                results,
+                key=lambda result: len(
+                    answer_tokens & set(tokenize(f"{result.heading}\n{result.text}"))
+                ),
+            )
             answer = (
                 f"{answer.rstrip()}\n\n"
                 f"[출처: {primary.source}#{primary.heading}]"

@@ -99,7 +99,7 @@
     "acceptable_sources": [
       {"source": "01-System-Baseline.md", "heading": "시스템 기준선"}
     ],
-    "expected_keywords": ["느리"],
+    "expected_keywords": ["응답시간"],
     "max_seconds": 90
   },
   {

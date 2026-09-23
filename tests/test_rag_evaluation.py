@@ -1,5 +1,5 @@
 from core.knowledge_base import SearchResult
-from rag_evaluation import score_answer, score_retrieval
+from rag_evaluation import score_answer, score_retrieval, select_cases
 
 
 CASE = {
@@ -51,3 +51,11 @@ def test_no_evidence_case_rewards_abstention():
     }
     assert score_retrieval([], case)["retrieval_score"] == 100.0
     assert score_answer(response, case)["answer_score"] == 100.0
+
+
+def test_select_cases_runs_only_requested_failures():
+    cases = [{"id": "one"}, {"id": "two"}, {"id": "three"}]
+    assert select_cases(cases, ["three", "one"], None) == [
+        {"id": "one"},
+        {"id": "three"},
+    ]
