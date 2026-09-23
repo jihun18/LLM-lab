@@ -7,6 +7,7 @@ from flask import Flask, Response, jsonify, request, send_file
 from core.config import settings
 from core.document_ingest import DocumentIngestError, DocumentIngestor, MAX_UPLOAD_BYTES
 from core.knowledge_base import KnowledgeBase
+from core.model_modes import build_model_modes
 from core.ollama_client import OllamaClient, OllamaError
 from core.rag_service import rag_response, rag_stream_events
 
@@ -38,7 +39,12 @@ def health():
 @app.get("/models")
 def models():
     try:
-        return jsonify(models=client.list_models(), default=settings.default_model)
+        installed = client.list_models()
+        return jsonify(
+            models=installed,
+            modes=build_model_modes(installed),
+            default=settings.default_model,
+        )
     except OllamaError as exc:
         return jsonify(error=str(exc)), 503
 

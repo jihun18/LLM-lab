@@ -20,7 +20,9 @@ def test_fastapi_exposes_expected_routes(monkeypatch):
     )
     test_client = TestClient(fastapi_module.app)
     assert test_client.get("/health").json()["framework"] == "FastAPI"
-    assert test_client.get("/models").status_code == 200
+    model_response = test_client.get("/models")
+    assert model_response.status_code == 200
+    assert model_response.json()["modes"][0]["label"] == "빠른 모드"
     assert test_client.get("/knowledge/status").status_code == 200
     assert test_client.get("/documents").status_code == 200
     home = test_client.get("/")
@@ -41,7 +43,9 @@ def test_flask_exposes_expected_routes(monkeypatch):
     )
     test_client = flask_module.app.test_client()
     assert test_client.get("/health").json["framework"] == "Flask"
-    assert test_client.get("/models").status_code == 200
+    model_response = test_client.get("/models")
+    assert model_response.status_code == 200
+    assert model_response.json["modes"][0]["label"] == "빠른 모드"
     assert test_client.get("/knowledge/status").status_code == 200
     assert test_client.get("/documents").status_code == 200
     home = test_client.get("/")

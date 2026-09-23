@@ -8,6 +8,7 @@ from fastapi.responses import FileResponse, StreamingResponse
 from core.config import settings
 from core.document_ingest import DocumentIngestError, DocumentIngestor, MAX_UPLOAD_BYTES
 from core.knowledge_base import KnowledgeBase
+from core.model_modes import build_model_modes
 from core.ollama_client import OllamaClient, OllamaError
 from core.rag_service import rag_response, rag_stream_events
 from core.schemas import ChatRequest, RagRequest, SummarizeRequest
@@ -47,7 +48,12 @@ def health() -> dict:
 @app.get("/models")
 def models() -> dict:
     try:
-        return {"models": client.list_models(), "default": settings.default_model}
+        installed = client.list_models()
+        return {
+            "models": installed,
+            "modes": build_model_modes(installed),
+            "default": settings.default_model,
+        }
     except OllamaError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
 

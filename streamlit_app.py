@@ -3,6 +3,7 @@ from pathlib import Path
 
 from core.config import settings
 from core.knowledge_base import KnowledgeBase
+from core.model_modes import build_model_modes
 from core.ollama_client import OllamaClient, OllamaError
 from core.rag_service import rag_response
 
@@ -23,12 +24,24 @@ st.title("🔒 privAI")
 st.caption("Ollama와 Streamlit으로 만든 완전 로컬 LLM 데모")
 
 try:
-    available = [item["name"] for item in client.list_models()]
+    installed = client.list_models()
 except OllamaError as exc:
     st.error(str(exc))
-    available = [settings.default_model]
+    installed = [{"name": settings.default_model}]
 
-model = st.sidebar.selectbox("모델", available, index=0)
+profiles = build_model_modes(installed)
+profile_by_model = {profile["model"]: profile for profile in profiles}
+available = [profile["model"] for profile in profiles]
+default_index = (
+    available.index(settings.default_model) if settings.default_model in available else 0
+)
+model = st.sidebar.selectbox(
+    "모델 모드",
+    available,
+    index=default_index,
+    format_func=lambda name: f"{profile_by_model[name]['label']} · {name}",
+)
+st.sidebar.caption(profile_by_model[model]["description"])
 system = st.sidebar.text_area("시스템 프롬프트", "간결하고 정확한 한국어로 답하세요.")
 use_wiki = st.sidebar.checkbox("Wiki 근거 사용", value=True)
 status = knowledge.status()

@@ -7,6 +7,7 @@ privAI는 외부 LLM API 없이 Windows PC에서 Ollama 경량 모델을 실행�
 ## 현재 구현된 기능
 
 - Ollama의 1.7B·4B Instruct·양자화 7B Instruct 로컬 추론
+- 실측 결과 기반 빠른·균형·정밀 모델 모드
 - FastAPI REST API와 `privAI.html` 채팅 화면
 - 공통 Wiki RAG를 사용하는 Flask·Streamlit 비교 데모
 - NDJSON 기반 응답 표시
@@ -111,7 +112,7 @@ python benchmark.py
 python benchmark.py --models qwen3:1.7b qwen3:4b-instruct qwen2.5:7b-instruct
 ```
 
-현재 자동 테스트는 **35개**입니다. 벤치마크 결과는 로컬 `benchmark-results/`에 JSON·CSV·Markdown으로 생성되며 Git에는 포함되지 않습니다.
+현재 자동 테스트는 **37개**입니다. 벤치마크 결과는 로컬 `benchmark-results/`에 JSON·CSV·Markdown으로 생성되며 Git에는 포함되지 않습니다.
 
 ## 실험 결과 요약
 

@@ -11,7 +11,7 @@
 | Method | Path | 설명 |
 |---|---|---|
 | GET | `/health` | 실행 프레임워크와 Ollama 연결 상태 |
-| GET | `/models` | 설치된 Ollama 모델 목록 |
+| GET | `/models` | 설치된 Ollama 모델과 빠른·균형·정밀 모드 |
 | POST | `/chat` | 일반 비스트리밍 채팅 |
 | POST | `/chat/stream` | 일반 NDJSON 채팅 |
 | POST | `/summarize` | 한국어 요약 |
