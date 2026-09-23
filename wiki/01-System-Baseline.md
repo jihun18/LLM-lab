@@ -1,5 +1,7 @@
 # 시스템 기준선
 
+<!-- rag-priority: 1.2 -->
+
 - OS: Windows 11 Pro
 - CPU: Intel Core i3-7100 3.90GHz
 - RAM: 16GB (2026-09-23 증설, 초기 기준 8GB)

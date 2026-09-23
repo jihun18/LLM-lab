@@ -1,5 +1,7 @@
 # 로컬 RAG 1단계
 
+<!-- rag-priority: 1.1 -->
+
 구현일: 2026-08-14
 
 ## 목적
@@ -39,4 +41,3 @@ FastAPI와 Flask, Streamlit의 역할을 비교해줘.
 - `POST /knowledge/reindex`
 - `POST /rag/chat`
 - `POST /rag/chat/stream`
-

@@ -1,0 +1,128 @@
+[
+  {
+    "id": "system_ram",
+    "category": "정확한 사실",
+    "question": "PrivAI 실험 PC의 현재 RAM 용량과 CPU는 무엇이야?",
+    "expected_source": "01-System-Baseline.md",
+    "expected_heading": "시스템 기준선",
+    "expected_keywords": ["16GB", "i3-7100"],
+    "max_seconds": 45
+  },
+  {
+    "id": "framework_roles",
+    "category": "정확한 사실",
+    "question": "FastAPI와 Flask, Streamlit은 각각 어떤 용도로 사용해?",
+    "expected_source": "02-Framework-Comparison.md",
+    "expected_heading": "결론",
+    "acceptable_sources": [
+      {"source": "11-v0.1.0-Milestone.md", "heading": "1. 웹 프레임워크 실험"}
+    ],
+    "expected_keywords": ["FastAPI", "Flask", "Streamlit"],
+    "max_seconds": 60
+  },
+  {
+    "id": "legacy_speed",
+    "category": "표 수치",
+    "question": "초기 벤치마크에서 0.6B와 1.7B의 평균 생성속도는 얼마였어?",
+    "expected_source": "06-Benchmark-Results-2026-08-14.md",
+    "expected_heading": "요약",
+    "acceptable_sources": [
+      {"source": "11-v0.1.0-Milestone.md", "heading": "2. 모델 실험"}
+    ],
+    "expected_values": ["24.45", "10.28", "token/s"],
+    "max_seconds": 5
+  },
+  {
+    "id": "rag_engine",
+    "category": "정확한 사실",
+    "question": "PrivAI 로컬 Wiki 검색은 어떤 검색 방식을 사용해?",
+    "expected_source": "07-Local-RAG.md",
+    "expected_heading": "현재 구조",
+    "expected_keywords": ["BM25"],
+    "max_seconds": 45
+  },
+  {
+    "id": "upload_limits",
+    "category": "수치",
+    "question": "업로드 파일의 최대 용량과 PDF 최대 페이지 수는 얼마야?",
+    "expected_source": "09-Document-Upload.md",
+    "expected_heading": "지원 형식",
+    "acceptable_sources": [
+      {"source": "11-v0.1.0-Milestone.md", "heading": "5. 문서 업로드"}
+    ],
+    "expected_values": ["5MB", "100페이지"],
+    "max_seconds": 45
+  },
+  {
+    "id": "verification_states",
+    "category": "요약",
+    "question": "PrivAI 화면에서 근거 검증 상태를 어떻게 구분해 표시해?",
+    "expected_source": "10-Claim-Verification.md",
+    "expected_heading": "화면 상태",
+    "expected_keywords": ["표 수치", "금액", "사람 검토"],
+    "max_seconds": 60
+  },
+  {
+    "id": "seven_b_reason",
+    "category": "이유 설명",
+    "question": "7B 모델을 PrivAI 기본 모델로 사용하지 않는 이유를 근거와 함께 설명해줘.",
+    "expected_source": "12-4B-7B-Model-Experiment.md",
+    "expected_heading": "7B를 PrivAI 기본 모델로 사용하지 않는 이유",
+    "expected_values": ["28.539초", "3.80 token/s", "16.034초", "6.80 token/s"],
+    "expected_keywords": ["느리"],
+    "max_seconds": 90
+  },
+  {
+    "id": "model_modes",
+    "category": "정확한 사실",
+    "question": "PrivAI의 빠른 모드, 균형 모드, 정밀 모드는 각각 어떤 모델이야?",
+    "expected_source": "13-Model-Modes.md",
+    "expected_heading": "현재 결정",
+    "expected_keywords": ["qwen3:1.7b", "qwen3:4b-instruct", "qwen2.5:7b-instruct"],
+    "max_seconds": 60
+  },
+  {
+    "id": "upload_flow",
+    "category": "순서 설명",
+    "question": "로컬 문서를 업로드하면 Wiki에 들어가기까지 어떤 순서로 처리돼?",
+    "expected_source": "09-Document-Upload.md",
+    "expected_heading": "처리 흐름",
+    "expected_keywords": ["해시", "Markdown", "재색인"],
+    "max_seconds": 60
+  },
+  {
+    "id": "particle_variant",
+    "category": "한국어 표현 변형",
+    "question": "7B를 기본 모델로 삼지 않은 까닭은 뭐야?",
+    "expected_source": "12-4B-7B-Model-Experiment.md",
+    "expected_heading": "7B를 PrivAI 기본 모델로 사용하지 않는 이유",
+    "acceptable_sources": [
+      {"source": "01-System-Baseline.md", "heading": "시스템 기준선"}
+    ],
+    "expected_keywords": ["느리"],
+    "max_seconds": 90
+  },
+  {
+    "id": "semantic_variant",
+    "category": "의미 표현 변형",
+    "question": "문서의 표현이 질문과 달라도 관련 내용을 찾기 위한 다음 검색 실험은 무엇이야?",
+    "expected_source": "11-v0.1.0-Milestone.md",
+    "expected_heading": "다음 단계",
+    "expected_keywords": ["의미 검색", "BM25"],
+    "max_seconds": 60
+  },
+  {
+    "id": "no_evidence_weather",
+    "category": "근거 없음",
+    "question": "PrivAI Wiki에 기록된 2027년 서울의 월별 강수량을 알려줘.",
+    "expect_no_evidence": true,
+    "max_seconds": 5
+  },
+  {
+    "id": "no_evidence_menu",
+    "category": "근거 없음",
+    "question": "PrivAI 개발팀 구내식당의 다음 주 월요일 메뉴는 뭐야?",
+    "expect_no_evidence": true,
+    "max_seconds": 5
+  }
+]

@@ -9,6 +9,18 @@ import re
 
 TOKEN_PATTERN = re.compile(r"[가-힣]+|[a-z0-9]+", re.IGNORECASE)
 HEADING_PATTERN = re.compile(r"^(#{1,6})\s+(.+?)\s*$")
+ISO_DATE_PATTERN = re.compile(r"\b(20\d{2}-\d{2}-\d{2})\b")
+RAG_PRIORITY_PATTERN = re.compile(r"<!--\s*rag-priority:\s*([0-9.]+)\s*-->")
+LOW_SIGNAL_QUERY_TOKENS = {
+    "privai",
+    "wiki",
+    "알려줘",
+    "설명해줘",
+    "무엇이야",
+    "뭐야",
+    "어떤",
+    "각각",
+}
 STANDALONE_KOREAN_PARTICLES = {
     "은",
     "는",
@@ -37,6 +49,14 @@ KOREAN_SUFFIXES = (
     "에는",
     "와는",
     "과는",
+    "한다면",
+    "하면서",
+    "하면",
+    "하는",
+    "하고",
+    "해서",
+    "돼",
+    "해",
     "이나",
     "나",
     "은",
@@ -78,6 +98,8 @@ class Chunk:
     heading: str
     text: str
     tokens: list[str]
+    latest_date: str | None = None
+    priority: float = 1.0
 
 
 @dataclass
@@ -100,12 +122,18 @@ class KnowledgeBase:
         self.document_frequency: Counter[str] = Counter()
         self.average_length = 0.0
         self.files_indexed = 0
+        self.latest_date: str | None = None
 
     def _chunks_from_markdown(self, path: Path) -> list[Chunk]:
         text = path.read_text(encoding="utf-8-sig")
+        if "<!-- rag-exclude -->" in text:
+            return []
+        priority_match = RAG_PRIORITY_PATTERN.search(text)
+        priority = float(priority_match.group(1)) if priority_match else 1.0
         relative = path.relative_to(self.root).as_posix()
         chunks: list[Chunk] = []
         heading = path.stem
+        document_title = path.stem
         buffer: list[str] = []
         inside_code_block = False
 
@@ -113,17 +141,22 @@ class KnowledgeBase:
             content = "\n".join(buffer).strip()
             if not content:
                 return
-            searchable = f"{heading}\n{content}"
+            searchable = f"{document_title}\n{heading}\n{content}"
+            dates = ISO_DATE_PATTERN.findall(searchable)
             chunks.append(
                 Chunk(
                     source=relative,
                     heading=heading,
                     text=content,
                     tokens=tokenize(searchable),
+                    latest_date=max(dates) if dates else None,
+                    priority=priority,
                 )
             )
 
         for line in text.splitlines():
+            if RAG_PRIORITY_PATTERN.fullmatch(line.strip()):
+                continue
             if line.strip().startswith("```"):
                 inside_code_block = not inside_code_block
                 continue
@@ -134,6 +167,8 @@ class KnowledgeBase:
                 flush()
                 buffer = []
                 heading = match.group(2).strip()
+                if len(match.group(1)) == 1:
+                    document_title = heading
             else:
                 buffer.append(line)
         flush()
@@ -154,6 +189,8 @@ class KnowledgeBase:
             if self.chunks
             else 0.0
         )
+        dates = [chunk.latest_date for chunk in self.chunks if chunk.latest_date]
+        self.latest_date = max(dates) if dates else None
         self.files_indexed = len(paths)
         return self.status()
 
@@ -168,7 +205,10 @@ class KnowledgeBase:
     def search(
         self, query: str, top_k: int = 3, min_relative_score: float = 0.3
     ) -> list[SearchResult]:
-        query_tokens = list(dict.fromkeys(tokenize(query)))
+        raw_query_tokens = list(dict.fromkeys(tokenize(query)))
+        query_tokens = [
+            token for token in raw_query_tokens if token not in LOW_SIGNAL_QUERY_TOKENS
+        ] or raw_query_tokens
         if not query_tokens or not self.chunks:
             return []
 
@@ -179,10 +219,12 @@ class KnowledgeBase:
             counts = Counter(chunk.tokens)
             length = len(chunk.tokens)
             score = 0.0
+            matched_tokens = 0
             for token in query_tokens:
                 frequency = counts[token]
                 if not frequency:
                     continue
+                matched_tokens += 1
                 document_frequency = self.document_frequency[token]
                 inverse_document_frequency = math.log(
                     1 + (total_chunks - document_frequency + 0.5) / (document_frequency + 0.5)
@@ -191,6 +233,15 @@ class KnowledgeBase:
                     1 - b + b * length / max(self.average_length, 1)
                 )
                 score += inverse_document_frequency * frequency * (k1 + 1) / denominator
+            if len(query_tokens) >= 4 and matched_tokens < 2:
+                continue
+            score *= chunk.priority
+            if (
+                any(marker in query for marker in ("현재", "최신", "지금"))
+                and self.latest_date
+                and chunk.latest_date == self.latest_date
+            ):
+                score *= 1.5
             if score > 0:
                 scored.append(
                     SearchResult(

@@ -19,6 +19,7 @@ privAI는 외부 LLM API 없이 Windows PC에서 Ollama 경량 모델을 실행�
 - Markdown 표의 속도·시간 열 구조 분석
 - 날짜·금액·단위 수치의 근거 원문 대조
 - 모델 속도·형식 준수 자동 벤치마크
+- 13문항 RAG 검색·답변·출처·거절·응답시간 평가
 
 ## 목표 환경
 
@@ -110,11 +111,21 @@ python benchmark.py
 
 # 1.7B·4B·양자화 7B 전체 비교
 python benchmark.py --models qwen3:1.7b qwen3:4b-instruct qwen2.5:7b-instruct
+
+# LLM 호출 없이 BM25 검색 정확도만 빠르게 평가
+python rag_evaluation.py --retrieval-only
+
+# 1.7B의 전체 RAG 답변 평가
+python rag_evaluation.py --models qwen3:1.7b
 ```
 
-현재 자동 테스트는 **37개**입니다. 벤치마크 결과는 로컬 `benchmark-results/`에 JSON·CSV·Markdown으로 생성되며 Git에는 포함되지 않습니다.
+현재 자동 테스트는 **46개**입니다. 벤치마크 결과는 로컬 `benchmark-results/`에 JSON·CSV·Markdown으로 생성되며 Git에는 포함되지 않습니다.
 
 ## 실험 결과 요약
+
+13문항 BM25 최초 기준선은 Top-1 53.8%, Top-3 76.9%였으며 1차 검색 개선 후
+Top-1 92.3%, Top-3 100%를 기록했다. 검색 방식 변경은 이 고정 문항에서 정확도와
+지연시간이 함께 개선될 때 채택한다.
 
 | 모델 | 평균 시간 | 평균 생성속도 | 현재 역할 |
 |---|---:|---:|---|
