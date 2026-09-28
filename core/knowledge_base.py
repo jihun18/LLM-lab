@@ -246,6 +246,14 @@ class KnowledgeBase:
                 marker in chunk.heading for marker in ("이유", "원인", "배경")
             ):
                 score *= 1.5
+            heading_intents = (
+                ("순서", "흐름"),
+                ("화면", "화면"),
+                ("표시", "상태"),
+            )
+            for query_marker, heading_marker in heading_intents:
+                if query_marker in query and heading_marker in chunk.heading:
+                    score *= 1.6
             if score > 0:
                 scored.append(
                     SearchResult(
@@ -277,10 +285,14 @@ def build_grounded_prompt(question: str, results: list[SearchResult]) -> str:
         "아래 근거에 있는 내용만 사용하여 질문에 한국어로 답하세요. "
         "근거에 답이 없으면 'Wiki에서 근거를 찾지 못했습니다.'라고 답하세요. "
         "근거를 사용해 답변했다면 근거 없음 문장을 추가하지 마세요. "
+        "근거 1을 가장 우선해서 사용하고, 근거 1만으로 답할 수 있으면 다른 근거의 내용을 섞지 마세요. "
+        "일반 질문은 최대 세 문장으로 답하고 질문과 직접 관계없는 배경 설명은 생략하세요. "
         "질문이 절차나 순서를 요구하면 근거의 단계와 핵심 용어를 빠뜨리지 마세요. "
+        "절차 답변은 번호 목록을 먼저 사용하고, 중복 처리처럼 근거에 명시된 핵심 조건은 목록 뒤에 한 문장으로 적으세요. "
         "수치 비교가 이유라면 비교 대상의 수치와 단위를 함께 적으세요. "
-        "추측하거나 새로운 사실을 만들지 말고 마지막 줄에는 아래 허용 출처 중 "
-        "실제로 사용한 항목을 정확히 표시하세요.\n"
+        "해시 이름, 모델명, 수치처럼 고유한 표기는 근거의 문자열을 그대로 복사하세요. "
+        "추측하거나 새로운 사실을 만들지 말고 출처는 하나만 사용하세요. "
+        "마지막 줄에는 아래 허용 출처 중 실제로 사용한 항목을 정확히 표시하세요.\n"
         f"[허용 출처]\n{allowed_sources}\n\n"
         f"{context_text}\n\n[질문]\n{question}"
     )

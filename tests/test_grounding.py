@@ -136,6 +136,17 @@ def test_unretrieved_source_is_blocked():
     assert verification["method"] == "invalid_source_citation"
 
 
+def test_heading_variation_for_retrieved_file_is_canonicalized():
+    answer, verification = validate_source_citations(
+        "BM25와 의미 검색을 비교합니다.\n"
+        "[출처: benchmark.md#모델이 바꿔 쓴 제목]",
+        [RESULT],
+    )
+    assert answer.endswith("[출처: benchmark.md#요약]")
+    assert "바꿔 쓴 제목" not in answer
+    assert verification is None
+
+
 def test_missing_citation_gets_primary_retrieved_source():
     answer, verification = validate_source_citations("근거 기반 답변입니다.", [RESULT])
     assert answer.endswith("[출처: benchmark.md#요약]")

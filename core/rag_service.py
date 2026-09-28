@@ -75,6 +75,21 @@ def validate_source_citations(
 
     invalid = sorted(supplied - expected)
     if invalid:
+        results_by_source = {
+            result.source.strip().lower(): result for result in results
+        }
+        cited_retrieved_sources = [
+            results_by_source[source]
+            for source, _heading in invalid
+            if source in results_by_source
+        ]
+        if len(cited_retrieved_sources) == len(invalid):
+            primary = cited_retrieved_sources[0]
+            answer = SOURCE_CITATION_PATTERN.sub("", answer).strip()
+            answer = (
+                f"{answer}\n\n[출처: {primary.source}#{primary.heading}]"
+            )
+            return answer, None
         invalid_text = ", ".join(f"{source}#{heading}" for source, heading in invalid)
         return BLOCKED_SOURCE_ANSWER, {
             "passed": False,

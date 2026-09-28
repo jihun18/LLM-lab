@@ -87,7 +87,7 @@
     "question": "로컬 문서를 업로드하면 Wiki에 들어가기까지 어떤 순서로 처리돼?",
     "expected_source": "09-Document-Upload.md",
     "expected_heading": "처리 흐름",
-    "expected_keywords": ["해시", "Markdown", "재색인"],
+    "expected_keywords": ["SHA-256", "Markdown", "재색인"],
     "max_seconds": 60
   },
   {

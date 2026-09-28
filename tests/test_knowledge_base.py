@@ -21,6 +21,10 @@ def test_markdown_index_and_search(tmp_path: Path):
     assert "[근거 1:" in prompt
     assert "[출처: system.md#시스템 사양]" in prompt
     assert "[출처: 파일명#제목]" not in prompt
+    assert "근거 1을 가장 우선" in prompt
+    assert "일반 질문은 최대 세 문장" in prompt
+    assert "고유한 표기는 근거의 문자열을 그대로 복사" in prompt
+    assert "출처는 하나만 사용" in prompt
 
 
 def test_search_without_match_returns_empty(tmp_path: Path):
@@ -144,3 +148,18 @@ def test_reason_question_boosts_reason_heading(tmp_path: Path):
     knowledge.reindex()
     results = knowledge.search("7B를 기본 모델로 삼지 않은 까닭은 뭐야")
     assert results[0].source == "reason.md"
+
+
+def test_heading_terms_can_rerank_a_more_specific_section(tmp_path: Path):
+    (tmp_path / "general.md").write_text(
+        "# 근거 검증\n\n## 기대 효과\n\n검증 결과 표시 오류를 줄인다.",
+        encoding="utf-8",
+    )
+    (tmp_path / "specific.md").write_text(
+        "# 주장 검증\n\n## 화면 상태\n\n통과와 실패를 구분한다.",
+        encoding="utf-8",
+    )
+    knowledge = KnowledgeBase(tmp_path)
+    knowledge.reindex()
+    results = knowledge.search("화면에서 검증 상태를 어떻게 구분해 표시해?")
+    assert results[0].source == "specific.md"
