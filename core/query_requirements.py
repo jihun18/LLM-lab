@@ -7,8 +7,13 @@ from .table_comparison import _tables
 from .grounding import extract_table_facts
 
 
+def asks_project_role(question):
+    compact = re.sub(r"\s+", "", question)
+    return any(word in compact for word in ("역할", "용도", "무엇을담당", "담당하는일", "어떤일을"))
+
+
 def role_requirements(question, results, entities=None):
-    if not any(word in question for word in ("역할", "용도")):
+    if not asks_project_role(question):
         return None
     names = entities if entities is not None else list(dict.fromkeys(re.findall(r"[A-Za-z][A-Za-z0-9_.-]*", question)))
     names = [name for name in names if name.lower() not in {"api", "rest", "ui", "token", "s"}]
@@ -25,11 +30,14 @@ def role_requirements(question, results, entities=None):
         return None
     missing = [f"{name}의 역할" for name in names if name.lower() not in role_names]
     requires_speed = "속도" in question or "token/s" in question.lower()
+    requires_response_speed = "응답속도" in re.sub(r"\s+", "", question)
     if requires_speed:
         facts = [fact for result in results for fact in extract_table_facts(result)]
         for name in names:
             if not any(fact.unit == "token/s" and fact.label.lower() == name.lower() for fact in facts):
                 missing.append(f"{name}의 표 기반 생성속도")
+    if requires_response_speed:
+        missing.append("전체 응답속도의 동일 조건 비교 근거")
     requires_reason = "왜" in question or "이유" in question
     if requires_reason:
         # A roles table is not evidence that services are wired together.
@@ -41,6 +49,7 @@ def role_requirements(question, results, entities=None):
         if not reason_found:
             missing.append("요청한 도구를 함께 사용하는 이유")
     return {"entities": names, "requires_speed": requires_speed,
+            "requires_response_speed": requires_response_speed,
             "requires_reason": requires_reason, "missing": missing,
             "scope": "명시적 역할 표·역할 목록, 대상별 속도 표, 제한된 이유 표현만 확인"}
 

@@ -12,6 +12,7 @@ def bounded_question(question, check):
     grammar = ("설명해주세요", "설명해줘", "알려주세요", "알려줘", "알려주고", "사용하는지도", "사용하는지",
                "함께", "쓰는지", "쓰는", "사용", "생성속도", "처리속도", "속도", "이유", "왜",
                "역할", "용도", "차이", "비교", "각각", "둘", "두", "도", "의", "와", "과", "을", "를", "은", "는", "고", "주")
+    grammar += ("무엇을담당하며", "무엇을담당", "담당하는일", "어떤일을", "하나요", "응답속도", "어때", "하며")
     return bool(check["entities"]) and re.fullmatch("(?:" + "|".join(map(re.escape, grammar)) + ")*", remainder) is not None
 
 
@@ -29,6 +30,8 @@ def supplement_role_evidence(question, initial, knowledge, search_mode):
             queries.append(f"{name} 생성속도 token/s")
     if check["requires_reason"] and "요청한 도구를 함께 사용하는 이유" in check["missing"]:
         queries.append(" ".join(check["entities"]) + " 함께 사용하는 이유 목적 분담")
+    if check.get("requires_response_speed"):
+        queries.append(" ".join(check["entities"]) + " 전체 응답시간 동일 조건 비교")
     combined = list(initial)
     seen = {(r.source, r.heading, r.text) for r in combined}
     trace = []
@@ -98,6 +101,9 @@ def requirement_source_answer(question, results):
     answer = "검색된 Wiki 원문에서 확인한 항목:\n" + "\n".join(items)
     if check["requires_speed"]:
         answer += "\n\n속도 행은 당시 모델 생성 실측 기록입니다. 프레임워크 자체의 처리 성능이나 동일 조건의 우열을 뜻하지 않습니다."
+    if check.get("requires_response_speed"):
+        answer += "\n응답속도 질문에 참고할 생성속도 기록만 제시했습니다. 전체 응답시간에는 모델 적재·입력 처리·답변 길이 등이 포함되어, token/s와 같은 지표가 아닙니다."
+        missing.append("전체 응답속도의 동일 조건 비교 근거 (생성속도 기록만으로 판단 불가)")
     if missing:
         answer += "\n\n확인하지 못한 항목:\n" + "\n".join("- " + item for item in missing)
         answer += "\n해당 근거 문서를 보완해주세요. 확인한 항목만 답했으며 질문 전체가 해결된 것은 아닙니다."

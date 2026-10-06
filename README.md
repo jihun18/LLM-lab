@@ -136,7 +136,7 @@ python rag_evaluation.py --models qwen3:1.7b
 python rag_evaluation.py --models qwen3:1.7b --case-ids verification_states upload_flow
 ```
 
-현재 자동 테스트는 **164개**입니다. 벤치마크 결과는 로컬 `benchmark-results/`에 JSON·CSV·Markdown으로 생성되며 Git에는 포함되지 않습니다.
+현재 자동 테스트는 **175개**입니다. 벤치마크 결과는 로컬 `benchmark-results/`에 JSON·CSV·Markdown으로 생성되며 Git에는 포함되지 않습니다.
 
 [복합 질문 별도 첫 평가](docs/COMPOUND-HOLDOUT.md): Wiki 6문항과 통제 근거 6문항을 분리해 확인했다. 모델 없는 11문항은 항목 검사를 통과했고, 의역 질문 1개는 실제 생성 후 차단되어 답변 요구가 미충족이었다.
 
