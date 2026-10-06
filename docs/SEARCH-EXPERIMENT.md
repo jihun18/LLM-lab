@@ -77,3 +77,59 @@ BM25를 기본값으로 유지한다. 현재 임베딩을 추가했다고 검색
 
 참고: [Ollama embed API](https://docs.ollama.com/api/embed),
 [Nomic 모델 설명](https://huggingface.co/nomic-ai/nomic-embed-text-v1.5).
+
+## 후속: 다국어 임베딩과 근거 없음 교정 (2026-10-06)
+
+EmbeddingGemma 300M을 로컬 Ollama에 추가했다. Google 공식 검색용 query/document
+입력 형식을 적용하며 Nomic의 접두어와 구분한다. 캐시는 모델별 파일로 분리한다.
+[공식 입력 형식](https://huggingface.co/google/embeddinggemma-300m#prompt-instructions).
+
+고정 평가 24문항을 변경하지 않고 `search_calibration_cases.json`의 별도 12문항
+(근거 있음 6, 없음 6)에서 최고 유사도로 답변 가능성을 교정했다. 후보 점수 사이의
+중간값을 비교해 근거 있는 질문 수용률과 없는 질문 거절률의 평균을 최대화한다.
+동점이면 거절률, 하한 순으로 선택한다. 이는 작은 개발용 교정 세트이며 독립적인
+최종 시험 세트가 아니다. 질문 주제가 겹치므로 일반화 성능을 보장하지 않는다.
+
+| 모델 | 선택 하한 | 교정 수용률 | 교정 거절률 |
+|---|---:|---:|---:|
+| Nomic | 0.754383 | 83.3% | 100% |
+| Gemma | 0.4395475 | 100% | 100% |
+
+하한은 모델별 코사인 점수 기준이지 사실성 확률이 아니다. 하이브리드도 의미 검색
+후보가 하나도 하한을 통과하지 못하면 BM25 결과만으로 우회하지 않고 거절한다.
+후보가 있으면 기존 RRF를 적용한다. 모든 결과 문장이 질문의 답이라는 보장은 없다.
+
+| 검색·모델 | Top-1 24문항 | Top-3 적중 | 근거 없음 4문항 | 평균 검색시간 |
+|---|---:|---:|---:|---:|
+| BM25 | 75.0% | 83.3% | 75.0% | 0.0013초 |
+| Nomic 의미·교정 | 25.0% | 33.3% | 75.0% | 0.1492초 |
+| Nomic 하이브리드·교정 | 54.2% | 54.2% | 75.0% | 0.1533초 |
+| Gemma 의미·교정 | 62.5% | 83.3% | 100% | 0.1435초 |
+| Gemma 하이브리드·교정 | 79.2% | 83.3% | 100% | 0.1406초 |
+
+원본 `rag-retrieval-search-20261006-094606.json`(Gemma),
+`rag-retrieval-search-20261006-094648.json`(Nomic)은 로컬 benchmark-results에 있다.
+Gemma 하이브리드는 근거 있는 20문항 Top-1 75%로 BM25와 동일했다. 전체 개선은
+근거 없는 질문 1개를 더 거절한 효과다. 단독 의미 검색이 BM25보다 낫다는 뜻은 아니다.
+첫 비교 대비 모델·하한·게이트가 함께 바뀌어 각 개선의 개별 효과를 분리한 실험도 아니다.
+
+대표 3문항(파일 한도·후속 검색 계획·날씨)의 하이브리드 답변 자동 점수는 평균100,
+전체 평균11.753초였다. `rag-evaluation-search-20261006-094728.json`.
+전체 답변 평가나 사람 검토 결과가 아니며 생성 편차가 있다.
+
+세 앱의 의미·하이브리드 옵션은 Gemma를 사용하지만 기본 검색은 BM25다.
+Ollama 모델이 없는 다른 PC는 `ollama pull embeddinggemma:300m`이 필요하다.
+설정 변경 후 서버 재시작이 필요하다.
+
+```powershell
+python search_calibration.py --embedding-model embeddinggemma:300m
+python search_calibration.py --embedding-model nomic-embed-text
+python search_evaluation.py --embedding-model embeddinggemma:300m --threshold 0.4395475
+python search_evaluation.py --embedding-model nomic-embed-text --threshold 0.754383
+$env:OLLAMA_EMBED_MODEL="nomic-embed-text"
+$env:SEMANTIC_THRESHOLD="0.754383"
+```
+
+교정 스크립트는 보고서만 만들고 앱 설정을 자동 변경하지 않는다. Wiki가 바뀌면 하한을
+다시 교정해야 한다. 다음은 남은 동의어·검증 상태 검색 실패 분석, 독립 질문 확장,
+전체 답변의 사람 평가다. 기존 24문항은 개발 회귀 평가로 유지한다.

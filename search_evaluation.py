@@ -9,6 +9,7 @@ import time
 import psutil
 
 from core.search import SearchKnowledge, SEARCH_MODES
+from core.config import settings, EMBEDDING_THRESHOLDS
 from core.rag_service import grounded_response, source_payload
 from rag_evaluation import load_cases, score_retrieval, score_answer, write_reports
 
@@ -20,16 +21,20 @@ def main():
     parser.add_argument("--modes", nargs="+", choices=SEARCH_MODES, default=list(SEARCH_MODES))
     parser.add_argument("--answers", action="store_true", help="Also generate and score answers")
     parser.add_argument("--model", default="qwen3:1.7b")
-    parser.add_argument("--threshold", type=float, default=0.65)
+    parser.add_argument("--threshold", type=float)
+    parser.add_argument("--embedding-model", default=settings.embedding_model)
     parser.add_argument("--case-ids", nargs="+")
     args = parser.parse_args()
+    if args.threshold is None:
+        args.threshold = (settings.semantic_threshold if args.embedding_model == settings.embedding_model
+                          else EMBEDDING_THRESHOLDS.get(args.embedding_model.split(":")[0], 0.65))
     cases = load_cases(ROOT / "rag_evaluation_cases.json") + load_cases(ROOT / "search_evaluation_cases.json")
     if args.case_ids:
         unknown = set(args.case_ids) - {c["id"] for c in cases}
         if unknown:
             parser.error(f"Unknown cases: {sorted(unknown)}")
         cases = [c for c in cases if c["id"] in args.case_ids]
-    knowledge = SearchKnowledge(ROOT / "wiki", threshold=args.threshold)
+    knowledge = SearchKnowledge(ROOT / "wiki", model=args.embedding_model, threshold=args.threshold)
     knowledge.reindex()
     rows, summaries = [], []
     for mode in args.modes:
@@ -64,6 +69,7 @@ def main():
         evidence = [r for r in mode_rows if not next(c for c in cases if c['id']==r['case_id']).get('expect_no_evidence')]
         absent = [r for r in mode_rows if r not in evidence]
         summary = {"model": mode, "cases": len(mode_rows), "threshold": args.threshold,
+                   "embedding_model": args.embedding_model,
                    "index_preparation_seconds": round(preparation, 3),
                    "top1_accuracy": round(mean(r['top1_correct'] for r in mode_rows)*100,1),
                    "source_hit_rate": round(mean(r['source_hit'] for r in mode_rows)*100,1),

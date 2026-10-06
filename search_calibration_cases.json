@@ -1,0 +1,14 @@
+[
+  {"question": "이 프로젝트 PC의 RAM 사양을 알려주세요", "has_evidence": true},
+  {"question": "업로드 가능한 파일 형식과 크기 제한을 알려주세요", "has_evidence": true},
+  {"question": "문서가 중복 업로드되면 어떻게 처리하나요", "has_evidence": true},
+  {"question": "7B 모델이 기본 데모에 적합하지 않은 까닭은 무엇인가요", "has_evidence": true},
+  {"question": "빠른 모드와 균형 모드의 모델 이름은 무엇인가요", "has_evidence": true},
+  {"question": "웹 프레임워크 실험에서 Flask의 목적은 무엇인가요", "has_evidence": true},
+  {"question": "오늘 대전의 미세먼지 농도는 얼마인가요", "has_evidence": false},
+  {"question": "우리 학교 다음 주 급식표를 알려주세요", "has_evidence": false},
+  {"question": "내 은행 계좌의 잔액은 얼마인가요", "has_evidence": false},
+  {"question": "2031년 제주 창업 지원금 신청 기간은 언제인가요", "has_evidence": false},
+  {"question": "내 공유기 관리자 비밀번호는 무엇인가요", "has_evidence": false},
+  {"question": "서울에서 부산으로 가는 내일 열차 운임은 얼마인가요", "has_evidence": false}
+]

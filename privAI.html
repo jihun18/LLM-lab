@@ -41,7 +41,7 @@
   <section class="panel">
     <div class="toolbar"><div><select id="model" aria-label="모델 모드"></select><div class="model-hint" id="modelHint"></div></div><input id="system" value="간결하고 정확한 한국어로 답하세요." aria-label="시스템 프롬프트"></div>
     <div class="ragbar"><label><input type="checkbox" id="ragMode" checked> Wiki 근거 사용</label><button type="button" class="smallbtn" id="reindex">Wiki 재색인</button><input type="file" id="documentFile" accept=".md,.txt,.pdf"><button type="button" class="smallbtn" id="uploadDocument">문서 추가</button><span id="knowledgeStatus">색인 확인 중</span></div>
-    <div class="ragbar"><label for="searchMode">검색 방식</label><select id="searchMode"><option value="bm25">BM25 · 키워드</option><option value="semantic">의미 검색 · 실험</option><option value="hybrid">하이브리드 · 실험</option></select><span>의미 검색은 첫 실행 시 문서를 준비합니다.</span></div>
+    <div class="ragbar"><label for="searchMode">검색 방식</label><select id="searchMode"><option value="bm25">BM25 · 키워드</option><option value="semantic">의미 검색 · 실험</option><option value="hybrid">하이브리드 · 실험</option></select><span id="embeddingInfo">의미 검색은 첫 실행 시 문서를 준비합니다.</span></div>
     <div id="messages"><div class="msg assistant">안녕하세요. Ollama에서 실행되는 로컬 AI입니다.</div></div>
     <form id="chatForm"><textarea id="prompt" placeholder="질문을 입력하세요" required></textarea><button id="send">전송</button></form>
     <footer><span id="framework">프레임워크 확인 중</span><span id="metrics">대기 중</span></footer>
@@ -57,6 +57,7 @@ async function initialize() {
     const [health, models, knowledge] = await Promise.all([fetch('/health').then(r=>r.json()), fetch('/models').then(r=>r.json()), fetch('/knowledge/status').then(r=>r.json())]);
     $('status').textContent='● Ollama 연결됨'; $('framework').textContent=health.framework;
     $('knowledgeStatus').textContent=`${knowledge.files_indexed}개 문서 · ${knowledge.chunks_indexed}개 조각`;
+    $('embeddingInfo').textContent=`임베딩: ${knowledge.embedding_model} · 근거 하한 ${knowledge.semantic_threshold}`;
     const modes=models.modes?.length?models.modes:models.models.map(item=>({model:item.name,label:'추가 모델',description:'설치된 Ollama 모델'}));
     for (const profile of modes) { modelProfiles.set(profile.model,profile); const o=document.createElement('option'); o.value=profile.model; o.textContent=`${profile.label} · ${profile.model}`; o.selected=profile.model===models.default; $('model').append(o); }
     updateModelHint();

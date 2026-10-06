@@ -13,7 +13,8 @@ st.set_page_config(page_title="privAI · Streamlit", page_icon="🔒", layout="c
 @st.cache_resource
 def local_services():
     local_client = OllamaClient()
-    local_knowledge = SearchKnowledge(Path(__file__).resolve().parent / "wiki", local_client)
+    local_knowledge = SearchKnowledge(Path(__file__).resolve().parent / "wiki", local_client,
+                                      settings.embedding_model, settings.semantic_threshold)
     local_knowledge.reindex()
     return local_client, local_knowledge
 

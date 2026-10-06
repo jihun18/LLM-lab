@@ -156,6 +156,13 @@ await fetch('/documents/upload', {
 
 ## 오류 코드
 
+`/knowledge/status`는 `embedding_model`과 `semantic_threshold`도 반환한다.
+의미·하이브리드 검색은 기본적으로 `embeddinggemma:300m`을 사용한다.
+하이브리드도 의미 후보가 하한에 못 미치면 근거 없음으로 처리하고 생성 모델을
+호출하지 않는다. BM25 요청에는 임베딩 모델이 필요하지 않다.
+`OLLAMA_EMBED_MODEL`, `SEMANTIC_THRESHOLD` 환경 설정은 서버 재시작 후 적용된다.
+교정 기준과 한계는 [검색 실험 기록](SEARCH-EXPERIMENT.md)에 설명한다.
+
 | 코드 | 의미 |
 |---:|---|
 | 400 | 잘못된 파일, 인코딩, PDF 또는 요청 내용 |

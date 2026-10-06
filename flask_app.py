@@ -15,7 +15,7 @@ from core.rag_service import rag_response, rag_stream_events
 app = Flask(__name__)
 client = OllamaClient()
 ROOT = Path(__file__).resolve().parent
-knowledge = SearchKnowledge(ROOT / "wiki", client)
+knowledge = SearchKnowledge(ROOT / "wiki", client, settings.embedding_model, settings.semantic_threshold)
 knowledge.reindex()
 documents = DocumentIngestor(ROOT / "wiki")
 

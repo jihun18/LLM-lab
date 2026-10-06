@@ -2,7 +2,9 @@
 
 2026-10-06: 로컬 의미 검색과 하이브리드 검색 실험을 추가했다. 화면에서 검색 방식을
 선택할 수 있고 `python search_evaluation.py`로 24문항 비교를 실행한다.
-첫 비교에서는 BM25가 더 좋아 기본값을 유지한다.
+후속 다국어 실험에서 EmbeddingGemma 하이브리드 Top-1 79.2%, 근거 없음 4문항 모두
+거절을 기록했다. 검색 기본값은 BM25로 유지하며 의미·하이브리드 옵션에는
+EmbeddingGemma와 별도 12문항으로 교정한 근거 하한을 적용한다.
 자세한 결과와 실행법은 [검색 실험 기록](docs/SEARCH-EXPERIMENT.md)을 참고한다.
 
 privAI는 외부 LLM API 없이 Windows PC에서 Ollama 경량 모델을 실행하고, 로컬 문서를 검색해 출처와 검증 상태를 함께 보여주는 개인용 AI 실험 프로젝트입니다.
@@ -127,7 +129,7 @@ python rag_evaluation.py --models qwen3:1.7b
 python rag_evaluation.py --models qwen3:1.7b --case-ids verification_states upload_flow
 ```
 
-현재 자동 테스트는 **53개**입니다. 벤치마크 결과는 로컬 `benchmark-results/`에 JSON·CSV·Markdown으로 생성되며 Git에는 포함되지 않습니다.
+현재 자동 테스트는 **56개**입니다. 벤치마크 결과는 로컬 `benchmark-results/`에 JSON·CSV·Markdown으로 생성되며 Git에는 포함되지 않습니다.
 
 ## 실험 결과 요약
 

@@ -1,5 +1,6 @@
 import pytest
-from core.search import SearchKnowledge
+from core.search import SearchKnowledge, embedding_input
+from search_calibration import choose_threshold
 
 
 class FakeEmbedder:
@@ -45,3 +46,28 @@ def test_bm25_does_not_call_embedding_service(tmp_path):
     assert client.documents == 0
     with pytest.raises(ValueError):
         knowledge.search("RAM", mode="unknown")
+
+
+def test_model_specific_prefixes_and_cache(tmp_path):
+    assert embedding_input("embeddinggemma:300m", "질문") == "task: search result | query: 질문"
+    assert embedding_input("embeddinggemma:300m", "내용", "제목") == "title: 제목 | text: 내용"
+    assert embedding_input("nomic-embed-text", "질문") == "search_query: 질문"
+    assert SearchKnowledge(tmp_path, model="embeddinggemma:300m").cache_path != SearchKnowledge(tmp_path).cache_path
+
+
+def test_hybrid_cannot_bypass_evidence_gate(tmp_path):
+    (tmp_path / "note.md").write_text("# RAM\n\nRAM 16GB", encoding="utf-8")
+    knowledge = SearchKnowledge(tmp_path, FakeEmbedder(), threshold=1.01)
+    knowledge.reindex()
+    assert knowledge.search("RAM", mode="bm25")
+    assert not knowledge.search("RAM", mode="hybrid")
+
+
+def test_calibration_balances_coverage_and_refusal():
+    rows = [{"score": .8, "has_evidence": True}, {"score": .7, "has_evidence": True},
+            {"score": .4, "has_evidence": False}, {"score": .3, "has_evidence": False}]
+    result = choose_threshold(rows)
+    assert .4 < result["threshold"] <= .7
+    assert result["balanced_accuracy"] == 1
+    with pytest.raises(ValueError):
+        choose_threshold(rows[:2])

@@ -11,6 +11,13 @@ from .ollama_client import OllamaClient, OllamaError
 SEARCH_MODES = ("bm25", "semantic", "hybrid")
 
 
+def embedding_input(model, text, title=None):
+    if model.split(":")[0] == "embeddinggemma":
+        return (f"title: {title} | text: {text}" if title is not None
+                else f"task: search result | query: {text}")
+    return f"search_document: {title}\n{text}" if title is not None else f"search_query: {text}"
+
+
 def normalized(vector):
     norm = math.sqrt(sum(float(x) ** 2 for x in vector))
     if not norm or not math.isfinite(norm):
@@ -24,7 +31,8 @@ class SearchKnowledge(KnowledgeBase):
         self.embedding_client = client or OllamaClient()
         self.embedding_model = model
         self.threshold = threshold
-        self.cache_path = self.root.parent / ".search-cache" / "embeddings.json"
+        cache_name = sha256(model.encode()).hexdigest()[:16]
+        self.cache_path = self.root.parent / ".search-cache" / f"embeddings-{cache_name}.json"
         self.vectors = {}
         self.lock = RLock()
         try:
@@ -44,7 +52,7 @@ class SearchKnowledge(KnowledgeBase):
         return sha256((self.embedding_model + "\n" + text).encode()).hexdigest()
 
     def _semantic(self, query, top_k):
-        texts = [f"search_document: {c.source}\n{c.heading}\n{c.text}" for c in self.chunks]
+        texts = [embedding_input(self.embedding_model, c.text, f"{c.source}\n{c.heading}") for c in self.chunks]
         missing = list(dict.fromkeys(t for t in texts if self._key(t) not in self.vectors))
         for offset in range(0, len(missing), 8):
             batch = missing[offset:offset + 8]
@@ -56,7 +64,7 @@ class SearchKnowledge(KnowledgeBase):
             temporary.write_text(json.dumps(self.vectors), encoding="utf-8")
             temporary.replace(self.cache_path)
         query_vector = normalized(self.embedding_client.embed(
-            [f"search_query: {query}"], self.embedding_model)[0])
+            [embedding_input(self.embedding_model, query)], self.embedding_model)[0])
         scored = []
         for chunk, text in zip(self.chunks, texts):
             vector = self.vectors[self._key(text)]
@@ -80,6 +88,9 @@ class SearchKnowledge(KnowledgeBase):
             if mode == "semantic":
                 return semantic[:top_k]
             lexical = super().search(query, 5, min_relative_score)
+            # A lexical hit alone must not bypass the semantic evidence gate.
+            if not semantic:
+                return []
             fused = {}
             for ranking in (lexical, semantic):
                 for rank, result in enumerate(ranking, 1):
