@@ -279,7 +279,7 @@ def build_grounded_prompt(question: str, results: list[SearchResult]) -> str:
         )
     context_text = "\n\n".join(contexts)
     allowed_sources = "\n".join(
-        f"- [출처: {result.source}#{result.heading}]" for result in results
+        f"- [출처: 근거 {index}]" for index, result in enumerate(results, start=1)
     )
     return (
         "아래 근거에 있는 내용만 사용하여 질문에 한국어로 답하세요. "
@@ -294,6 +294,7 @@ def build_grounded_prompt(question: str, results: list[SearchResult]) -> str:
         "수치 비교가 이유라면 비교 대상의 수치와 단위를 함께 적으세요. "
         "해시 이름, 모델명, 수치처럼 고유한 표기는 근거의 문자열을 그대로 복사하세요. "
         "추측하거나 새로운 사실을 만들지 말고 출처는 하나만 사용하세요. "
+        "출처 파일명이나 절 제목을 직접 쓰지 말고, 실제 사용한 근거 번호를 선택하세요. "
         "마지막 줄에는 아래 허용 출처 중 실제로 사용한 항목을 정확히 표시하세요.\n"
         f"[허용 출처]\n{allowed_sources}\n\n"
         f"{context_text}\n\n[질문]\n{question}"

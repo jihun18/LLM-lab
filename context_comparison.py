@@ -32,6 +32,7 @@ def main():
               "temperature": settings.temperature, "system": SYSTEM,
               "case_ids": args.case_ids, "prompt_revision": "role-and-list-contracts-v1",
               "text_extraction": False,
+              "citation_format": "structured_json",
               "note": "Paired modes alternate order. Fresh model residency per measured question; model warm-up excluded. No identical prompt warm-up."},
               "warmups": [], "results": [], "summary": []}
     def save():

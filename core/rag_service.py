@@ -2,15 +2,19 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 import re
+import json
 import time
 
 from .grounding import deterministic_metric_answer, verify_grounded_answer
 from .knowledge_base import KnowledgeBase, SearchResult, build_grounded_prompt, tokenize
 from .ollama_client import OllamaClient
 from .source_extraction import deterministic_text_answer
+from .text_contracts import verify_text_contracts
 
 
 SOURCE_CITATION_PATTERN = re.compile(r"\[출처:\s*([^\]#]+)#([^\]]+)\]")
+SOURCE_ID_PATTERN = re.compile(r"\[출처:\s*근거\s*(\d+)\s*\]")
+SOURCE_ID_TOKEN = re.compile(r"\[출처:\s*근거[^\]]*\]")
 NO_EVIDENCE_ANSWER = "Wiki에서 근거를 찾지 못했습니다."
 BLOCKED_SOURCE_ANSWER = (
     "Wiki 근거와 연결되지 않은 답변을 차단했습니다. "
@@ -19,8 +23,20 @@ BLOCKED_SOURCE_ANSWER = (
 
 
 def validate_source_citations(
-    answer: str, results: list[SearchResult]
+    answer: str, results: list[SearchResult], require_explicit: bool = False,
 ) -> tuple[str, dict | None]:
+    id_tokens = SOURCE_ID_TOKEN.findall(answer)
+    for token in id_tokens:
+        match = SOURCE_ID_PATTERN.fullmatch(token)
+        if not match or not 1 <= int(match.group(1)) <= len(results):
+            return BLOCKED_SOURCE_ANSWER, {
+                "passed": False, "method": "invalid_source_id",
+                "issues": ["모델이 선택한 근거 번호가 제공된 범위에 없습니다."],
+            }
+    def resolve_id(match: re.Match) -> str:
+        result = results[int(match.group(1)) - 1]
+        return f"[출처: {result.source}#{result.heading}]"
+    answer = SOURCE_ID_PATTERN.sub(resolve_id, answer)
     answer = re.sub(r"(?m)^\s*(?:출처|근거)\s*:\s*(?=\[출처:)", "", answer)
     seen_citations: set[str] = set()
 
@@ -56,7 +72,7 @@ def validate_source_citations(
         for source, heading in citations
     }
     if not supplied:
-        if results:
+        if results and not require_explicit:
             answer_tokens = set(tokenize(answer))
             primary = max(
                 results,
@@ -72,7 +88,7 @@ def validate_source_citations(
         return BLOCKED_SOURCE_ANSWER, {
             "passed": False,
             "method": "missing_source_citation",
-            "issues": ["검색 결과와 모델 답변에 Wiki 출처가 없습니다."],
+            "issues": ["모델 답변에 명시적으로 선택한 Wiki 출처가 없습니다."],
         }
 
     invalid = sorted(supplied - expected)
@@ -85,7 +101,7 @@ def validate_source_citations(
             for source, _heading in invalid
             if source in results_by_source
         ]
-        if len(cited_retrieved_sources) == len(invalid):
+        if not require_explicit and len(cited_retrieved_sources) == len(invalid):
             primary = cited_retrieved_sources[0]
             answer = SOURCE_CITATION_PATTERN.sub("", answer).strip()
             answer = (
@@ -154,16 +170,46 @@ def grounded_response(
     original_count = len(results)
     results = select_context(prompt, results, context_mode)
     grounded_prompt = build_grounded_prompt(prompt, results)
-    response = client.chat(grounded_prompt, model, system)
+    structured = callable(getattr(client, "chat_with_sources", None))
+    response = (client.chat_with_sources(grounded_prompt, model, system, len(results))
+                if structured else client.chat(grounded_prompt, model, system))
+    selected_results = results
+    if structured:
+        try:
+            data = json.loads(response["answer"])
+            if not isinstance(data, dict) or set(data) != {"answer", "source_id"}:
+                raise ValueError("fields")
+            if not isinstance(data["answer"], str) or not data["answer"].strip():
+                raise ValueError("answer")
+            if "[출처:" in data["answer"]:
+                raise ValueError("citation_in_body")
+            source_id = data["source_id"]
+            if type(source_id) is not int or not 0 <= source_id <= len(results):
+                raise ValueError("source_id")
+            if source_id == 0 and data["answer"].strip() != NO_EVIDENCE_ANSWER:
+                raise ValueError("unselected")
+            response = {**response, "answer": data["answer"] + (f"\n[출처: 근거 {source_id}]" if source_id else "")}
+            selected_results = [results[source_id - 1]] if source_id else []
+        except (ValueError, TypeError, KeyError):
+            return {**response, "answer": BLOCKED_SOURCE_ANSWER, "sources": [],
+                    "verification": {"passed": False, "method": "invalid_structured_citation",
+                                     "issues": ["답변 형식 또는 명시적 근거 번호가 올바르지 않습니다."]}}
     answer, citation_verification = validate_source_citations(
-        response["answer"], results
+        response["answer"], results, require_explicit=True
     )
     verification = citation_verification or verify_grounded_answer(
-        prompt, answer, results
+        prompt, answer, selected_results
     )
+    # Selection proves citation identity, not the answer's meaning. Explicit
+    # role contradictions elsewhere in PROVIDED evidence must still be flagged.
+    contract = verify_text_contracts(prompt, answer, results)
+    if citation_verification is None and contract and contract["passed"] is False:
+        contract["selected_source_verification"] = verification
+        verification = contract
     return {**response, "answer": answer, "verification": verification,
-            "sources": source_payload(results),
+            "sources": source_payload(selected_results),
             "context": {"mode": context_mode, "retrieved_count": original_count,
+                        "citation_format": "structured_json" if structured else "inline",
                         "sent_count": len(results), "prompt_characters": len(grounded_prompt)}}
 
 

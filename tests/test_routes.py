@@ -82,6 +82,7 @@ def test_flask_exposes_expected_routes(monkeypatch):
 
 
 def test_flask_rag_uses_local_wiki(monkeypatch, tmp_path):
+    monkeypatch.setattr(flask_module.client, "chat_with_sources", None)
     (tmp_path / "policy.md").write_text(
         "# 지원정책\n\n청년 AI 개발 지원금은 월 10만원이며 "
         "신청 마감일은 2026년 9월 30일이다.",

@@ -26,9 +26,11 @@ class MeasuredClient(OllamaClient):
         super().__init__(timeout=300)
         self.calls = []
 
-    def chat(self, prompt, model=None, system=None):
+    def chat(self, prompt, model=None, system=None, response_format=None):
         payload = self._payload(prompt, model, system, stream=False)
         payload["options"]["seed"] = 42
+        if response_format is not None:
+            payload["format"] = response_format
         started = time.perf_counter()
         with self._client() as client:
             response = client.post("/api/chat", json=payload)
@@ -93,6 +95,7 @@ def main():
     report = {"protocol": {"search_mode": "hybrid", "embedding_model": settings.embedding_model,
               "threshold": settings.semantic_threshold, "num_ctx": settings.num_ctx, "num_predict": settings.num_predict,
               "temperature": settings.temperature, "seed": 42, "system": SYSTEM,
+              "citation_format": "structured_json",
               "retrieval_sha256": sha256(json.dumps(snapshot, ensure_ascii=False, sort_keys=True).encode()).hexdigest(),
               "note": "Precomputed search excluded from per-answer times; one sequential run, not statistical ranking."},
               "installed_models": {model: installed[model] for model in args.models},

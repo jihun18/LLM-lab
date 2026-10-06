@@ -136,7 +136,9 @@ python rag_evaluation.py --models qwen3:1.7b
 python rag_evaluation.py --models qwen3:1.7b --case-ids verification_states upload_flow
 ```
 
-현재 자동 테스트는 **100개**입니다. 벤치마크 결과는 로컬 `benchmark-results/`에 JSON·CSV·Markdown으로 생성되며 Git에는 포함되지 않습니다.
+현재 자동 테스트는 **120개**입니다. 벤치마크 결과는 로컬 `benchmark-results/`에 JSON·CSV·Markdown으로 생성되며 Git에는 포함되지 않습니다.
+
+[출처 선택 개선](docs/CITATION-SELECTION.md): 모델은 답변과 근거 번호를 구조화해서 반환하고 서버가 정확한 출처로 연결한다. 문장 의미의 정확도와는 별개다.
 
 [제한적 원문 추출](docs/SOURCE-TEXT-EXTRACTION.md): 명확한 역할·상태 문구 목록을 모델 호출 없이 원문에서 복사하며, 일반 설명과 비교 질문은 기존 생성 경로를 유지한다.
 

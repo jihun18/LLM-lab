@@ -98,13 +98,17 @@ class OllamaClient:
         prompt: str,
         model: str | None = None,
         system: str | None = None,
+        response_format: dict | None = None,
     ) -> dict[str, Any]:
         started = time.perf_counter()
         try:
+            payload = self._payload(prompt, model, system, stream=False)
+            if response_format is not None:
+                payload["format"] = response_format
             with self._client() as client:
                 response = client.post(
                     "/api/chat",
-                    json=self._payload(prompt, model, system, stream=False),
+                    json=payload,
                 )
                 response.raise_for_status()
                 data = response.json()
@@ -123,6 +127,18 @@ class OllamaClient:
             else None,
             "eval_count": eval_count,
         }
+
+    def chat_with_sources(self, prompt, model, system, source_count):
+        schema = {"type": "object", "properties": {
+            "answer": {"type": "string"},
+            "source_id": {"type": "integer", "enum": list(range(source_count + 1))}},
+            "required": ["answer", "source_id"], "additionalProperties": False}
+        instruction = ("\n\n[최종 출력]" +
+            "\n앞의 출처 줄 지시 대신 JSON만 반환하세요. answer에 한국어 답변을 최대 세 문장으로 적고 "
+            "파일명·출처 괄호는 쓰지 마세요. source_id에 실제로 사용한 근거 번호를 적으세요. "
+            "근거가 없으면 answer는 'Wiki에서 근거를 찾지 못했습니다.', source_id는 0입니다.\n" +
+            json.dumps(schema, ensure_ascii=False))
+        return self.chat(prompt + instruction, model, system, response_format=schema)
 
     def stream_chat(
         self,

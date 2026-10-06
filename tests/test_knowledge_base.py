@@ -19,7 +19,7 @@ def test_markdown_index_and_search(tmp_path: Path):
     assert "8GB" in results[0].text
     prompt = build_grounded_prompt("RAM은?", results)
     assert "[근거 1:" in prompt
-    assert "[출처: system.md#시스템 사양]" in prompt
+    assert "[출처: 근거 1]" in prompt
     assert "[출처: 파일명#제목]" not in prompt
     assert "근거 1을 가장 우선" in prompt
     assert "일반 질문은 최대 세 문장" in prompt
