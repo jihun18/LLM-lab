@@ -29,7 +29,8 @@ MODEL_MODE_PROFILES = (
 
 
 def build_model_modes(installed_models: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    installed_names = [str(item.get("name", "")) for item in installed_models]
+    installed_names = [str(item.get("name", "")) for item in installed_models
+                       if "embed" not in str(item.get("name", "")).lower()]
     profiles = {profile["model"]: profile for profile in MODEL_MODE_PROFILES}
     modes = [dict(profile) for profile in MODEL_MODE_PROFILES if profile["model"] in installed_names]
     modes.extend(

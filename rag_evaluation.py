@@ -213,6 +213,13 @@ def write_reports(
             f"- {row['model']}: Top-1 {row['top1_accuracy']}%, "
             f"출처 적중 {row['source_hit_rate']}%"
         )
+        if "average_search_seconds" in row:
+            lines.append(
+                f"  - 검색 평균 {row['average_search_seconds']}초, 색인 준비 "
+                f"{row['index_preparation_seconds']}초, 근거 없음 성공 "
+                f"{row['no_evidence_success_rate']}%, Python RSS 표본 최대 "
+                f"{row['python_peak_sampled_rss_mb']}MB (Ollama 제외)"
+            )
         if not retrieval_only:
             lines.append(
                 f"  - 답변 점수 {row['average_answer_score']}, 평균 {row['average_seconds']}초, "

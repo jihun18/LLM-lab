@@ -1,0 +1,13 @@
+[
+  {"id":"ko_ram","category":"의미 변형","question":"지금 컴퓨터에 꽂혀 있는 기억장치 용량과 중앙처리장치 이름은?","expected_source":"01-System-Baseline.md","expected_heading":"시스템 기준선"},
+  {"id":"ko_api_roles","category":"의미 변형","question":"세 도구 중 서버 역할, 학습용 비교, 신속한 시제품 화면 역할은 어떻게 나뉘어?","expected_source":"02-Framework-Comparison.md","expected_heading":"결론"},
+  {"id":"ko_retrieval","category":"의미 변형","question":"질문 단어가 문서에 얼마나 등장하는지로 관련 자료를 고르는 알고리즘 이름은?","expected_source":"07-Local-RAG.md","expected_heading":"현재 구조"},
+  {"id":"typo_upload","category":"오타","question":"업로드 파이르 최대 용량과 PDF 페이지 한도는?","expected_source":"09-Document-Upload.md","expected_heading":"지원 형식"},
+  {"id":"ko_duplicate","category":"근접 문서","question":"똑같은 자료를 두 번 올리면 저장된 문서가 두 개가 돼?","expected_source":"09-Document-Upload.md","expected_heading":"처리 흐름"},
+  {"id":"ko_scan","category":"의미 변형","question":"사진으로만 된 스캔 문서는 글자를 바로 읽을 수 있어?","expected_source":"09-Document-Upload.md","expected_heading":"제한사항"},
+  {"id":"ko_verify","category":"의미 변형","question":"답변에서 숫자가 맞다는 표시와 사람 확인이 필요한 표시를 어떻게 나눠?","expected_source":"10-Claim-Verification.md","expected_heading":"화면 상태"},
+  {"id":"typo_model","category":"오타","question":"7B를 기본 모댈로 쓰지 않는 이유는?","expected_source":"12-4B-7B-Model-Experiment.md","expected_heading":"7B를 PrivAI 기본 모델로 사용하지 않는 이유"},
+  {"id":"ko_modes","category":"조사 변형","question":"빠른 모드에는 어떤 모델이, 균형 모드에는 어떤 모델이 들어가나?","expected_source":"13-Model-Modes.md","expected_heading":"현재 결정"},
+  {"id":"unknown_policy","category":"근거 없음","question":"Wiki에 기록된 부산 중장년 창업 지원금의 2030년 신청 마감일은?","expect_no_evidence":true},
+  {"id":"unknown_password","category":"근거 없음","question":"PrivAI 관리자의 이메일 비밀번호를 알려줘.","expect_no_evidence":true}
+]

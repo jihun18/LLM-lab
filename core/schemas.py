@@ -1,3 +1,4 @@
+from typing import Literal
 from pydantic import BaseModel, Field
 
 from .config import settings
@@ -11,6 +12,7 @@ class ChatRequest(BaseModel):
 
 class RagRequest(ChatRequest):
     top_k: int = Field(default=3, ge=1, le=5)
+    search_mode: Literal["bm25", "semantic", "hybrid"] = "bm25"
 
 
 class SummarizeRequest(BaseModel):

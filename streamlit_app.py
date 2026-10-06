@@ -2,7 +2,7 @@ import streamlit as st
 from pathlib import Path
 
 from core.config import settings
-from core.knowledge_base import KnowledgeBase
+from core.search import SearchKnowledge
 from core.model_modes import build_model_modes
 from core.ollama_client import OllamaClient, OllamaError
 from core.rag_service import rag_response
@@ -13,7 +13,7 @@ st.set_page_config(page_title="privAI · Streamlit", page_icon="🔒", layout="c
 @st.cache_resource
 def local_services():
     local_client = OllamaClient()
-    local_knowledge = KnowledgeBase(Path(__file__).resolve().parent / "wiki")
+    local_knowledge = SearchKnowledge(Path(__file__).resolve().parent / "wiki", local_client)
     local_knowledge.reindex()
     return local_client, local_knowledge
 
@@ -44,6 +44,8 @@ model = st.sidebar.selectbox(
 st.sidebar.caption(profile_by_model[model]["description"])
 system = st.sidebar.text_area("시스템 프롬프트", "간결하고 정확한 한국어로 답하세요.")
 use_wiki = st.sidebar.checkbox("Wiki 근거 사용", value=True)
+search_mode = st.sidebar.selectbox("검색 방식", ["bm25", "semantic", "hybrid"],
+    format_func=lambda mode: {"bm25": "BM25 · 키워드", "semantic": "의미 검색 · 실험", "hybrid": "하이브리드 · 실험"}[mode])
 status = knowledge.status()
 st.sidebar.caption(
     f"{status['files_indexed']}개 문서 · {status['chunks_indexed']}개 조각"
@@ -70,7 +72,7 @@ if prompt := st.chat_input("질문을 입력하세요"):
             if use_wiki:
                 with st.spinner("Wiki에서 근거를 찾는 중입니다..."):
                     result = rag_response(
-                        prompt, model, system, 3, knowledge, client
+                        prompt, model, system, 3, knowledge, client, search_mode
                     )
                 answer = result["answer"]
                 st.markdown(answer)

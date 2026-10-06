@@ -50,6 +50,20 @@ class OllamaClient:
         except httpx.HTTPError as exc:
             raise OllamaError(f"Ollama 모델 목록 조회 실패: {exc}") from exc
 
+    def embed(self, texts: list[str], model: str = "nomic-embed-text") -> list[list[float]]:
+        try:
+            with self._client() as client:
+                response = client.post("/api/embed", json={
+                    "model": model, "input": texts, "truncate": False,
+                })
+                response.raise_for_status()
+                vectors = response.json()["embeddings"]
+            if len(vectors) != len(texts) or any(not v for v in vectors):
+                raise ValueError("임베딩 개수가 입력과 일치하지 않습니다.")
+            return vectors
+        except (httpx.HTTPError, ValueError, KeyError) as exc:
+            raise OllamaError(f"로컬 임베딩 요청 실패: {exc}") from exc
+
     def _payload(
         self,
         prompt: str,

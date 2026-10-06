@@ -54,6 +54,12 @@ POST /chat
 
 ## RAG 채팅
 
+`search_mode`는 `bm25`(기본), `semantic`, `hybrid` 중 하나다.
+FastAPI와 Flask의 일반 및 스트리밍 RAG 요청에서 모두 지원한다.
+응답에는 `search_seconds`가 포함되며 `elapsed_seconds`는 검색과 생성 시간의 합이다.
+의미 검색은 로컬 `nomic-embed-text`가 필요하다. 오류 발생 시 HTTP 502 또는
+스트림 오류 이벤트로 알리며, 요청한 검색 방식을 조용히 바꾸지 않는다.
+
 ```json
 POST /rag/chat
 {

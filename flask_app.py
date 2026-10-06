@@ -6,7 +6,7 @@ from flask import Flask, Response, jsonify, request, send_file
 
 from core.config import settings
 from core.document_ingest import DocumentIngestError, DocumentIngestor, MAX_UPLOAD_BYTES
-from core.knowledge_base import KnowledgeBase
+from core.search import SearchKnowledge, SEARCH_MODES
 from core.model_modes import build_model_modes
 from core.ollama_client import OllamaClient, OllamaError
 from core.rag_service import rag_response, rag_stream_events
@@ -15,7 +15,7 @@ from core.rag_service import rag_response, rag_stream_events
 app = Flask(__name__)
 client = OllamaClient()
 ROOT = Path(__file__).resolve().parent
-knowledge = KnowledgeBase(ROOT / "wiki")
+knowledge = SearchKnowledge(ROOT / "wiki", client)
 knowledge.reindex()
 documents = DocumentIngestor(ROOT / "wiki")
 
@@ -93,6 +93,9 @@ def validated_rag_data():
     data, error = validated_chat_data()
     if error:
         return None, error
+    data["search_mode"] = (request.get_json(silent=True) or {}).get("search_mode", "bm25")
+    if data["search_mode"] not in SEARCH_MODES:
+        return None, (jsonify(error="지원하지 않는 검색 방식입니다."), 400)
     raw_top_k = (request.get_json(silent=True) or {}).get("top_k", 3)
     try:
         data["top_k"] = min(max(int(raw_top_k), 1), 5)

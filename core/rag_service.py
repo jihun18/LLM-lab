@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 import re
+import time
 
 from .grounding import deterministic_metric_answer, verify_grounded_answer
 from .knowledge_base import KnowledgeBase, SearchResult, build_grounded_prompt, tokenize
@@ -148,15 +149,21 @@ def rag_response(
     top_k: int,
     knowledge: KnowledgeBase,
     client: OllamaClient,
+    search_mode: str = "bm25",
 ) -> dict:
-    results = knowledge.search(prompt, top_k)
+    started = time.perf_counter()
+    results = (knowledge.search(prompt, top_k) if search_mode == "bm25"
+               else knowledge.search(prompt, top_k, mode=search_mode))
+    search_seconds = time.perf_counter() - started
     sources = source_payload(results)
     if not results:
         return {
             "model": model,
+            "search_mode": search_mode,
+            "search_seconds": round(search_seconds, 3),
             "answer": "Wiki에서 관련 근거를 찾지 못했습니다.",
             "sources": [],
-            "elapsed_seconds": 0,
+            "elapsed_seconds": round(search_seconds, 3),
             "tokens_per_second": None,
             "eval_count": 0,
             "verification": {
@@ -167,7 +174,9 @@ def rag_response(
         }
 
     response = grounded_response(prompt, model, system, results, client)
-    return {**response, "sources": sources}
+    return {**response, "sources": sources, "search_mode": search_mode,
+            "search_seconds": round(search_seconds, 3),
+            "elapsed_seconds": round(response["elapsed_seconds"] + search_seconds, 3)}
 
 
 def rag_stream_events(
@@ -177,8 +186,9 @@ def rag_stream_events(
     top_k: int,
     knowledge: KnowledgeBase,
     client: OllamaClient,
+    search_mode: str = "bm25",
 ) -> Iterator[dict]:
-    response = rag_response(prompt, model, system, top_k, knowledge, client)
+    response = rag_response(prompt, model, system, top_k, knowledge, client, search_mode)
     yield {"sources": response["sources"]}
     yield {
         "done": False,
@@ -187,6 +197,8 @@ def rag_stream_events(
     }
     yield {
         "done": True,
+        "search_mode": search_mode,
+        "search_seconds": response["search_seconds"],
         "elapsed_seconds": response["elapsed_seconds"],
         "tokens_per_second": response["tokens_per_second"],
         "eval_count": response["eval_count"],

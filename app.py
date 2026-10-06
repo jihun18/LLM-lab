@@ -7,7 +7,7 @@ from fastapi.responses import FileResponse, StreamingResponse
 
 from core.config import settings
 from core.document_ingest import DocumentIngestError, DocumentIngestor, MAX_UPLOAD_BYTES
-from core.knowledge_base import KnowledgeBase
+from core.search import SearchKnowledge
 from core.model_modes import build_model_modes
 from core.ollama_client import OllamaClient, OllamaError
 from core.rag_service import rag_response, rag_stream_events
@@ -21,7 +21,7 @@ app = FastAPI(
 )
 client = OllamaClient()
 ROOT = Path(__file__).resolve().parent
-knowledge = KnowledgeBase(ROOT / "wiki")
+knowledge = SearchKnowledge(ROOT / "wiki", client)
 knowledge.reindex()
 documents = DocumentIngestor(ROOT / "wiki")
 
@@ -118,6 +118,7 @@ def rag_chat(request: RagRequest) -> dict:
             request.top_k,
             knowledge,
             client,
+            request.search_mode,
         )
     except OllamaError as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
@@ -134,6 +135,7 @@ def rag_chat_stream(request: RagRequest) -> StreamingResponse:
                 request.top_k,
                 knowledge,
                 client,
+                request.search_mode,
             ):
                 yield json.dumps(event, ensure_ascii=False) + "\n"
         except OllamaError as exc:
