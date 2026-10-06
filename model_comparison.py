@@ -60,8 +60,12 @@ class MeasuredClient(OllamaClient):
 def classify_path(calls, response):
     if calls:
         return "llm_generation"
+    if response.get("execution_path") == "requirements_abstention":
+        return "requirements_abstention"
     if response.get("model") == "deterministic-text":
         return "deterministic_text"
+    if response.get("model") == "deterministic-comparison":
+        return "deterministic_role_comparison"
     return "deterministic_table" if response.get("model") == "deterministic-table" else "no_evidence"
 
 

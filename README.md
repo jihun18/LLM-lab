@@ -136,11 +136,15 @@ python rag_evaluation.py --models qwen3:1.7b
 python rag_evaluation.py --models qwen3:1.7b --case-ids verification_states upload_flow
 ```
 
-현재 자동 테스트는 **120개**입니다. 벤치마크 결과는 로컬 `benchmark-results/`에 JSON·CSV·Markdown으로 생성되며 Git에는 포함되지 않습니다.
+현재 자동 테스트는 **146개**입니다. 벤치마크 결과는 로컬 `benchmark-results/`에 JSON·CSV·Markdown으로 생성되며 Git에는 포함되지 않습니다.
+
+[복합 질문 근거 확인](docs/COMPOUND-QUESTION-GUARDS.md): 도구 역할 비교의 요청 항목을 제한적으로 확인하고, 알려진 검증 실패 답변은 JSON·스트리밍 본문에서 안전한 안내로 바꾼다.
 
 [출처 선택 개선](docs/CITATION-SELECTION.md): 모델은 답변과 근거 번호를 구조화해서 반환하고 서버가 정확한 출처로 연결한다. 문장 의미의 정확도와는 별개다.
 
-[제한적 원문 추출](docs/SOURCE-TEXT-EXTRACTION.md): 명확한 역할·상태 문구 목록을 모델 호출 없이 원문에서 복사하며, 일반 설명과 비교 질문은 기존 생성 경로를 유지한다.
+[제한적 원문 추출](docs/SOURCE-TEXT-EXTRACTION.md): 명확한 역할·상태 문구 목록을 모델 호출 없이 원문에서 복사한다.
+
+[역할 비교표 추출](docs/ROLE-COMPARISON-EXTRACTION.md): 범위가 명확한 역할·차이 질문은 검색된 비교표의 역할·API 문서 셀을 직접 복사한다. 일반적인 성능·기능 한계나 선택 이유는 이 경로로 답하지 않는다.
 
 [역할·필수 문구 검증 보강](docs/TEXT-CONTRACT-VALIDATION.md): 기존 축약 실험 답변의 역할 교환과 문구 누락을 재검사했다. 제한 규칙이며 전체 문장 의미 검증은 아니다.
 

@@ -10,6 +10,7 @@ from .knowledge_base import KnowledgeBase, SearchResult, build_grounded_prompt, 
 from .ollama_client import OllamaClient
 from .source_extraction import deterministic_text_answer
 from .text_contracts import verify_text_contracts
+from .table_comparison import deterministic_role_comparison
 
 
 SOURCE_CITATION_PATTERN = re.compile(r"\[출처:\s*([^\]#]+)#([^\]]+)\]")
@@ -146,6 +147,24 @@ def grounded_response(
                 "verification": {"passed": False, "method": "no_evidence",
                                  "issues": ["질문 조건의 근거가 없습니다: " + ", ".join(missing)]}}
     started = time.perf_counter()
+    from .query_requirements import role_requirements, requirements_notice, missing_answer_items
+    requirements = role_requirements(prompt, results)
+    if requirements and requirements["missing"]:
+        return {"model": model, "execution_path": "requirements_abstention",
+                "answer": requirements_notice(requirements), "sources": source_payload(results),
+                "elapsed_seconds": 0, "tokens_per_second": None, "eval_count": 0,
+                "verification": {"passed": False, "method": "missing_query_requirements",
+                                 "requirements": requirements,
+                                 "issues": ["부족한 요구 근거: " + item for item in requirements["missing"]]}}
+    comparison = deterministic_role_comparison(prompt, results) if allow_text_extraction else None
+    if comparison:
+        answer, verification = comparison
+        selected = results[verification["source_index"]]
+        return {"model": "deterministic-comparison", "requested_model": model,
+                "execution_path": "deterministic_role_comparison", "answer": answer,
+                "elapsed_seconds": time.perf_counter() - started,
+                "tokens_per_second": None, "eval_count": 0,
+                "sources": source_payload([selected]), "verification": verification}
     text_extraction = deterministic_text_answer(prompt, results) if allow_text_extraction else None
     if text_extraction:
         answer, verification = text_extraction
@@ -197,6 +216,11 @@ def grounded_response(
     answer, citation_verification = validate_source_citations(
         response["answer"], results, require_explicit=True
     )
+    if not structured and citation_verification is None:
+        cited = {(source.strip().lower(), heading.strip().lower())
+                 for source, heading in SOURCE_CITATION_PATTERN.findall(answer)}
+        selected_results = [result for result in results
+                            if (result.source.lower(), result.heading.lower()) in cited]
     verification = citation_verification or verify_grounded_answer(
         prompt, answer, selected_results
     )
@@ -206,7 +230,25 @@ def grounded_response(
     if citation_verification is None and contract and contract["passed"] is False:
         contract["selected_source_verification"] = verification
         verification = contract
+    selected_requirements = (role_requirements(prompt, selected_results, requirements["entities"])
+                             if requirements else None)
+    if (citation_verification is None and selected_requirements and selected_requirements["missing"]
+            and verification.get("passed") is not False):
+        verification = {"passed": False, "method": "selected_source_requirements_missing",
+                        "requirements": selected_requirements, "previous_verification": verification,
+                        "issues": ["선택 출처의 요구 근거 부족: " + item for item in selected_requirements["missing"]]}
+    omissions = missing_answer_items(answer, requirements) if requirements else []
+    if citation_verification is None and omissions and verification.get("passed") is not False:
+        verification = {"passed": False, "method": "answer_requirements_missing",
+                        "previous_verification": verification,
+                        "issues": ["답변 요구 누락: " + item for item in omissions]}
+    # Never stream an answer already known to fail verification. Do not include
+    # the rejected body in normal API responses or browser events.
+    blocked = verification.get("passed") is False
+    if blocked and citation_verification is None:
+        answer = "답변이 Wiki 근거 검증을 통과하지 못해 표시하지 않았습니다. 질문을 항목별로 나누거나 근거 문서를 보완해주세요."
     return {**response, "answer": answer, "verification": verification,
+            "answer_status": "blocked" if blocked else "review_required" if verification.get("passed") is None else "verified",
             "sources": source_payload(selected_results),
             "context": {"mode": context_mode, "retrieved_count": original_count,
                         "citation_format": "structured_json" if structured else "inline",

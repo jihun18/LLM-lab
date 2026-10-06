@@ -141,7 +141,7 @@ def deterministic_metric_answer(
     question: str, results: list[SearchResult]
 ) -> tuple[str, dict] | None:
     normalized = question.lower().replace(" ", "")
-    compound_markers = ("자동점수", "점수", "이유", "왜", "생략")
+    compound_markers = ("자동점수", "점수", "이유", "왜", "생략", "역할", "용도")
     asks_speed = any(marker in normalized for marker in ("token/s", "토큰/초", "속도"))
     asks_time = any(marker in normalized for marker in ("평균시간", "몇초"))
     if any(marker in normalized for marker in compound_markers) or (
