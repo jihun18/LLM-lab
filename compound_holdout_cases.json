@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "purpose": "구현 후 처음 실행하는 별도 확인 질문. 결과 확인 후 튜닝에 재사용하면 회귀 세트로 전환한다.",
+  "fixtures": {
+    "base": [{"source":"fixture/roles.md","heading":"역할","text":"| 항목 | AlphaSrv | BetaPanel |\n|---|---|---|\n| 역할 | 문서 API | 실험 화면 |"}],
+    "speed": [{"source":"fixture/speed.md","heading":"실측","text":"| 도구 | 모델 | 생성속도 |\n|---|---|---|\n| AlphaSrv | demo:2b | 8 token/s |\n| BetaPanel | demo:2b | 9 token/s |"}],
+    "conflict_speed": [{"source":"fixture/other-speed.md","heading":"별도 실측","text":"| 도구 | 모델 | 생성속도 |\n|---|---|---|\n| AlphaSrv | demo:2b | 18 token/s |\n| BetaPanel | demo:2b | 19 token/s |"}],
+    "conflict_role": [{"source":"fixture/other-roles.md","heading":"다른 역할","text":"| 항목 | AlphaSrv | BetaPanel |\n|---|---|---|\n| 역할 | 검색 화면 | 실험 화면 |"}],
+    "reason": [{"source":"fixture/reason.md","heading":"설계 목적","text":"AlphaSrv와 BetaPanel은 문서 제공과 실험 화면을 분담하기 위해 함께 사용한다."}],
+    "mention": [{"source":"fixture/mention.md","heading":"이름 메모","text":"GammaKit이라는 이름만 기록되어 있다."}],
+    "dated_speed": [{"source":"fixture/dated-speed.md","heading":"연도별","text":"| 도구 | 연도 | 생성속도 |\n|---|---|---|\n| AlphaSrv | 2024년 | 8 token/s |\n| AlphaSrv | 2025년 | 8 token/s |\n| BetaPanel | 2024년 | 9 token/s |\n| BetaPanel | 2025년 | 9 token/s |"}]
+  },
+  "cases": [
+    {"id":"h01","scope":"wiki","question":"Flask와 Streamlit의 역할과 처리 속도를 알려주세요.","required":["최소 비교군","빠른 데모 UI","12.61 token/s","11.24 token/s","qwen3:1.7b","당시 모델 생성 실측"],"expected_status":"source_copied","sources":["02-Framework-Comparison.md#구현 비교","02-Framework-Comparison.md#사용자 실측 결과"]},
+    {"id":"h02","scope":"wiki","question":"Streamlit과 FastAPI의 용도와 생성속도도 알려줘.","required":["빠른 데모 UI","주력 REST API","11.24 token/s","11.75 token/s","당시 모델 생성 실측"],"expected_status":"source_copied","sources":["02-Framework-Comparison.md#사용자 실측 결과"]},
+    {"id":"h03","scope":"wiki","question":"Flask와 Streamlit의 역할과 Bottle의 역할도 알려줘.","required":["최소 비교군","빠른 데모 UI","Bottle의 역할 (검색 근거 부족)","질문 전체가 해결된 것은 아닙니다"],"expected_status":"partial","sources":["02-Framework-Comparison.md#구현 비교"]},
+    {"id":"h04","scope":"wiki","question":"Flask와 Streamlit의 역할과 왜 함께 쓰는지 알려주세요.","required":["최소 비교군","빠른 데모 UI","함께 사용하는 이유의 원문 (검색 근거 부족)"],"expected_status":"partial","sources":["02-Framework-Comparison.md#구현 비교"]},
+    {"id":"h05","scope":"wiki","question":"Flask와 Streamlit은 무엇을 담당하며 응답 속도는 어때?","required":["Flask","Streamlit","12.61 token/s","11.24 token/s"],"forbidden":["Flask가 더 빠릅니다","Streamlit이 더 빠릅니다"],"sources":["02-Framework-Comparison.md#사용자 실측 결과"],"semantic_review_required":true},
+    {"id":"h06","scope":"wiki","question":"FastAPI와 Flask의 역할과 2031년 속도를 알려줘.","required":["근거를 찾지 못했습니다"],"forbidden":["11.75","12.61"],"expected_method":"no_evidence","no_sources":true},
+    {"id":"h07","scope":"fixture","fixtures":["base","speed","conflict_speed"],"question":"AlphaSrv와 BetaPanel의 역할과 속도를 알려줘.","required":["문서 API","실험 화면","원문 값 충돌"],"forbidden":["8 token/s","9 token/s","18 token/s","19 token/s"],"expected_status":"partial","sources":["fixture/roles.md#역할"]},
+    {"id":"h08","scope":"fixture","fixtures":["base","conflict_role"],"question":"AlphaSrv와 BetaPanel의 역할과 GammaKit의 역할도 알려줘.","required":["AlphaSrv의 역할 (원문 값 충돌)","BetaPanel의 역할: 실험 화면","GammaKit의 역할 (검색 근거 부족)"],"forbidden":["AlphaSrv의 역할: 문서 API","AlphaSrv의 역할: 검색 화면"],"expected_status":"partial","sources":["fixture/roles.md#역할"]},
+    {"id":"h09","scope":"fixture","fixtures":["base","reason"],"question":"BetaPanel과 AlphaSrv의 역할과 왜 함께 쓰는지 알려줘.","required":["문서 API","실험 화면","문서 제공과 실험 화면을 분담하기 위해 함께 사용한다"],"expected_status":"source_copied","sources":["fixture/reason.md#설계 목적"]},
+    {"id":"h10","scope":"fixture","fixtures":["base"],"question":"BetaPanel과 AlphaSrv의 역할과 생성속도도 알려줘.","required":["문서 API","실험 화면","기록된 생성속도 행 (검색 근거 부족)"],"expected_status":"partial","sources":["fixture/roles.md#역할"]},
+    {"id":"h11","scope":"fixture","fixtures":["base","mention"],"question":"AlphaSrv와 BetaPanel의 역할과 GammaKit의 역할도 알려줘.","required":["문서 API","실험 화면","GammaKit의 역할 (검색 근거 부족)"],"expected_status":"partial","sources":["fixture/roles.md#역할"]},
+    {"id":"h12","scope":"fixture","fixtures":["base","dated_speed"],"question":"AlphaSrv와 BetaPanel의 역할과 속도를 알려주세요.","required":["문서 API","실험 화면","원문 값 충돌"],"forbidden":["8 token/s","9 token/s"],"expected_status":"partial","sources":["fixture/roles.md#역할"]}
+  ]
+}
