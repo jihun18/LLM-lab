@@ -32,13 +32,15 @@ def main():
     client = OllamaClient(timeout=90)
     results = []
     for case in CASES:
-        print(f"{case['id']}: 실제 생성 확인 시작", flush=True)
+        print(f"{case['id']}: 서비스 응답 확인 시작 (필요할 때만 모델 생성)", flush=True)
         try:
             response = rag_response(case["question"], args.model,
                                     "Wiki 근거만 사용하고 간결하고 정확한 한국어로 답하세요.", 3, kb, client)
             results.append({**case, "response": response, "semantic_review": "pending_human_review"})
             print(json.dumps({"id": case["id"], "answer": response["answer"],
                               "answer_status": response.get("answer_status"),
+                              "execution_path": response.get("execution_path", "llm_generation"),
+                              "eval_count": response.get("eval_count"),
                               "verification": response.get("verification"),
                               "elapsed_seconds": response.get("elapsed_seconds")}, ensure_ascii=False), flush=True)
         except Exception as exc:

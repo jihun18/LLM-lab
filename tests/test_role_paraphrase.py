@@ -31,4 +31,6 @@ def test_failed_holdout_becomes_partial_regression_not_general_speed_claim():
 def test_paraphrase_does_not_silently_drop_memory_request():
     source = SearchResult("roles.md", "표", "| 항목 | AppA | AppB |\n|---|---|---|\n| 역할 | API | UI |", 1)
     assert role_requirements("AppA와 AppB는 무엇을 담당하며 응답 속도는 어때?", [source])
-    assert requirement_source_answer("AppA와 AppB는 무엇을 담당하며 메모리도 알려줘", [source]) is None
+    answer, _, check = requirement_source_answer("AppA와 AppB는 무엇을 담당하며 메모리도 알려줘", [source])
+    assert "AppA의 대상별 메모리 사용량 (검색 근거 부족)" in answer
+    assert check["passed"] is None

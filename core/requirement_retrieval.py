@@ -2,6 +2,7 @@
 import re
 from .query_requirements import role_requirements
 from .table_comparison import _tables
+from .role_lists import plain_role_pairs, memory_rows
 
 
 def bounded_question(question, check):
@@ -13,6 +14,7 @@ def bounded_question(question, check):
                "함께", "쓰는지", "쓰는", "사용", "생성속도", "처리속도", "속도", "이유", "왜",
                "역할", "용도", "차이", "비교", "각각", "둘", "두", "도", "의", "와", "과", "을", "를", "은", "는", "고", "주")
     grammar += ("무엇을담당하며", "무엇을담당", "담당하는일", "어떤일을", "하나요", "응답속도", "어때", "하며")
+    grammar += ("업무", "메모리사용량", "메모리", "사용량")
     return bool(check["entities"]) and re.fullmatch("(?:" + "|".join(map(re.escape, grammar)) + ")*", remainder) is not None
 
 
@@ -28,6 +30,8 @@ def supplement_role_evidence(question, initial, knowledge, search_mode):
             queries.append(f"{name} 역할 용도")
         if f"{name}의 표 기반 생성속도" in check["missing"]:
             queries.append(f"{name} 생성속도 token/s")
+        if f"{name}의 대상별 메모리 사용량" in check["missing"]:
+            queries.append(f"{name} 메모리 사용량 RSS")
     if check["requires_reason"] and "요청한 도구를 함께 사용하는 이유" in check["missing"]:
         queries.append(" ".join(check["entities"]) + " 함께 사용하는 이유 목적 분담")
     if check.get("requires_response_speed"):
@@ -55,7 +59,7 @@ def requirement_source_answer(question, results):
         return None
     # Preserve the ordinary simple-comparison path. This is for missing targets
     # and speed/reason additions, not every role query.
-    if not (check["missing"] or check["requires_speed"] or check["requires_reason"]):
+    if not (check["missing"] or check["requires_speed"] or check["requires_reason"] or check.get("requires_memory")):
         return None
     items, missing, used = [], [], []
 
@@ -70,8 +74,10 @@ def requirement_source_answer(question, results):
             used.append(result)
 
     for name in check["entities"]:
-        roles, speeds = [], []
+        roles, speeds, memories, list_roles = [], [], [], []
         for result in results:
+            list_roles.extend((role, result) for entity, role in plain_role_pairs(result.text) if entity.lower() == name.lower())
+            memories.extend((value, result) for value in memory_rows(name, result))
             for headers, rows in _tables(result.text):
                 if headers[0] == "항목":
                     columns = [i for i, header in enumerate(headers) if header.lower() == name.lower()]
@@ -85,9 +91,13 @@ def requirement_source_answer(question, results):
                             # Copy the entire row (including model/time columns),
                             # not a context-free number attributed to the framework.
                             speeds.append(("; ".join(f"{headers[i]} — {row[i]}" for i in range(1, len(headers))), result))
-        copy_item(name + "의 역할", roles)
+        # Explicit project comparison cells remain primary. Narrative role
+        # lists can be differently worded; only use them when no table exists.
+        copy_item(name + "의 역할", roles or list_roles)
         if check["requires_speed"]:
             copy_item(name + "의 기록된 생성속도 행", speeds)
+        if check.get("requires_memory"):
+            copy_item(name + "의 대상별 메모리 사용량", memories)
     if check["requires_reason"]:
         reasons = []
         for result in results:
@@ -104,6 +114,8 @@ def requirement_source_answer(question, results):
     if check.get("requires_response_speed"):
         answer += "\n응답속도 질문에 참고할 생성속도 기록만 제시했습니다. 전체 응답시간에는 모델 적재·입력 처리·답변 길이 등이 포함되어, token/s와 같은 지표가 아닙니다."
         missing.append("전체 응답속도의 동일 조건 비교 근거 (생성속도 기록만으로 판단 불가)")
+    if check.get("requires_memory"):
+        answer += "\n\n메모리 사용량은 요청한 도구의 측정 행만 확인합니다. PC의 전체 RAM 용량이나 모델 파일 크기를 도구별 메모리 사용량으로 대신하지 않습니다."
     if missing:
         answer += "\n\n확인하지 못한 항목:\n" + "\n".join("- " + item for item in missing)
         answer += "\n해당 근거 문서를 보완해주세요. 확인한 항목만 답했으며 질문 전체가 해결된 것은 아닙니다."

@@ -46,7 +46,7 @@ def test_conflicting_speed_rows_not_arbitrarily_selected():
     assert "5 token/s" not in answer and "9 token/s" not in answer
     assert "ToolA의 기록된 생성속도 행 (원문 값 충돌)" in check["missing_items"]
 
-@pytest.mark.parametrize("extra", ["메모리도", "포트도", "예시도", "2026년", "token/s도"])
+@pytest.mark.parametrize("extra", ["CPU사용률도", "포트도", "예시도", "2026년", "token/s도"])
 def test_unhandled_requirements_cannot_be_omitted(extra):
     question = f"ToolA와 ToolB의 역할과 속도 {extra} 알려줘"
     assert requirement_source_answer(question, [ROLE, SPEED]) is None
