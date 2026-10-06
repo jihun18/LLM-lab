@@ -136,7 +136,9 @@ python rag_evaluation.py --models qwen3:1.7b
 python rag_evaluation.py --models qwen3:1.7b --case-ids verification_states upload_flow
 ```
 
-현재 자동 테스트는 **146개**입니다. 벤치마크 결과는 로컬 `benchmark-results/`에 JSON·CSV·Markdown으로 생성되며 Git에는 포함되지 않습니다.
+현재 자동 테스트는 **159개**입니다. 벤치마크 결과는 로컬 `benchmark-results/`에 JSON·CSV·Markdown으로 생성되며 Git에는 포함되지 않습니다.
+
+[항목별 추가 검색과 부분 답변](docs/REQUIREMENT-RETRIEVAL.md): 제한된 역할·속도·이유 질문에서 필요한 근거를 추가 검색하고, 확인한 원문과 미확인 항목을 분리한다.
 
 [복합 질문 근거 확인](docs/COMPOUND-QUESTION-GUARDS.md): 도구 역할 비교의 요청 항목을 제한적으로 확인하고, 알려진 검증 실패 답변은 JSON·스트리밍 본문에서 안전한 안내로 바꾼다.
 

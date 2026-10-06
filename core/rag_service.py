@@ -268,6 +268,25 @@ def rag_response(
     results = (knowledge.search(prompt, top_k) if search_mode == "bm25"
                else knowledge.search(prompt, top_k, mode=search_mode))
     search_seconds = time.perf_counter() - started
+    from .requirement_retrieval import supplement_role_evidence, requirement_source_answer
+    from .evidence_scope import unsupported_query_anchors
+    trace = []
+    # Frozen-context/model comparison calls grounded_response directly, so
+    # follow-up retrieval cannot silently alter their controlled evidence.
+    if results and not unsupported_query_anchors(prompt, results):
+        results, trace = supplement_role_evidence(prompt, results, knowledge, search_mode)
+        copied = requirement_source_answer(prompt, results)
+        if copied:
+            answer, used, verification = copied
+            elapsed = round(time.perf_counter() - started, 3)
+            return {"model": "deterministic-requirements", "requested_model": model,
+                    "execution_path": "deterministic_requirement_copy", "answer": answer,
+                    "answer_status": "partial" if verification["missing_items"] else "source_copied",
+                    "sources": source_payload(used), "verification": verification,
+                    "search_mode": search_mode, "retrieval_followups": trace,
+                    "search_seconds": elapsed, "elapsed_seconds": elapsed,
+                    "eval_count": 0, "tokens_per_second": None}
+    search_seconds = time.perf_counter() - started
     sources = source_payload(results)
     if not results:
         return {
@@ -288,6 +307,7 @@ def rag_response(
 
     response = grounded_response(prompt, model, system, results, client)
     return {**response, "sources": response.get("sources", sources), "search_mode": search_mode,
+            "retrieval_followups": trace,
             "search_seconds": round(search_seconds, 3),
             "elapsed_seconds": round(response["elapsed_seconds"] + search_seconds, 3)}
 

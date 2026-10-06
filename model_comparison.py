@@ -62,6 +62,8 @@ def classify_path(calls, response):
         return "llm_generation"
     if response.get("execution_path") == "requirements_abstention":
         return "requirements_abstention"
+    if response.get("execution_path") == "deterministic_requirement_copy":
+        return "deterministic_requirement_copy"
     if response.get("model") == "deterministic-text":
         return "deterministic_text"
     if response.get("model") == "deterministic-comparison":
