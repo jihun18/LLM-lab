@@ -2,8 +2,10 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 import re
+from .evidence_scope import unsupported_query_anchors, MODEL_TAG
 
 from .knowledge_base import SearchResult
+from .text_contracts import verify_text_contracts
 
 
 NUMBER_PATTERN = re.compile(r"-?\d+(?:\.\d+)?")
@@ -100,10 +102,18 @@ def metric_facts(question: str, results: list[SearchResult]) -> list[TableFact]:
     unit = requested_unit(question)
     if not unit:
         return []
+    if unsupported_query_anchors(question, results):
+        return []
+    model_tags = {tag.lower() for tag in MODEL_TAG.findall(question)}
     facts: list[TableFact] = []
     seen: set[tuple[str, str, float]] = set()
     for result in results:
         result_facts = extract_table_facts(result)
+        if model_tags:
+            result_facts = [fact for fact in result_facts
+                            if model_tags & {tag.lower() for tag in MODEL_TAG.findall(fact.label)}]
+            if not result_facts:
+                continue
         question_tokens = set(re.findall(r"[a-z0-9.]+", question.lower())) - {
             "token",
             "s",
@@ -114,7 +124,7 @@ def metric_facts(question: str, results: list[SearchResult]) -> list[TableFact]:
             if question_tokens
             & set(re.findall(r"[a-z0-9.]+", fact.label.lower()))
         ]
-        if matching_facts:
+        if matching_facts and not model_tags:
             result_facts = matching_facts
 
         for fact in result_facts:
@@ -270,6 +280,14 @@ def verify_structured_claims(answer: str, results: list[SearchResult]) -> dict:
 def verify_grounded_answer(
     question: str, answer: str, results: list[SearchResult]
 ) -> dict:
-    if requested_unit(question):
-        return verify_metric_answer(question, answer, results)
-    return verify_structured_claims(answer, results)
+    numeric = (verify_metric_answer(question, answer, results) if requested_unit(question)
+               else verify_structured_claims(answer, results))
+    contract = verify_text_contracts(question, answer, results)
+    if contract is None:
+        return numeric
+    contract["numeric_verification"] = numeric
+    if numeric["passed"] is False:
+        contract["passed"] = False
+        contract["display_label"] = "검증 실패"
+        contract["issues"].extend(numeric["issues"])
+    return contract

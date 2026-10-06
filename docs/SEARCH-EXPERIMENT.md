@@ -80,6 +80,10 @@ BM25를 기본값으로 유지한다. 현재 임베딩을 추가했다고 검색
 
 ## 후속: 다국어 임베딩과 근거 없음 교정 (2026-10-06)
 
+이후 실패 분석과 질문 조건 검증 결과는 [별도 기록](SEARCH-FAILURE-ANALYSIS.md)에 있다.
+기존 4문항 거절 성공이 모든 근거 없음 질문의 성공을 뜻하지 않음을 새 문항에서 확인했고,
+명시적 연도·모델 태그 검증으로 근접 문서 오연결을 추가 차단했다.
+
 EmbeddingGemma 300M을 로컬 Ollama에 추가했다. Google 공식 검색용 query/document
 입력 형식을 적용하며 Nomic의 접두어와 구분한다. 캐시는 모델별 파일로 분리한다.
 [공식 입력 형식](https://huggingface.co/google/embeddinggemma-300m#prompt-instructions).

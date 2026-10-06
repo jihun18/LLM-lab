@@ -6,6 +6,13 @@
 거절을 기록했다. 검색 기본값은 BM25로 유지하며 의미·하이브리드 옵션에는
 EmbeddingGemma와 별도 12문항으로 교정한 근거 하한을 적용한다.
 자세한 결과와 실행법은 [검색 실험 기록](docs/SEARCH-EXPERIMENT.md)을 참고한다.
+후속 [실패 분석·질문 조건 검증](docs/SEARCH-FAILURE-ANALYSIS.md)에서 기존 실패 5문항,
+새 평가 질문 12개, 추가 확인 6개, 1.7B/4B 답변 비교 및 사람 검토 절차를 기록했다.
+저장된 답변의 [AI 원문 대조 검토](docs/AI-ANSWER-REVIEW.md)도 추가했다. 사람 평가는 별도로 필요하다.
+수정 후 [1.7B·4B·양자화7B 비교](docs/THREE-MODEL-COMPARISON.md)를 완료했다.
+실제 생성4문항 웜 평균은17.052/29.252/35.738초였으며 기본 모델은1.7B를 유지한다.
+후속 [근거 길이 실험](docs/CONTEXT-LENGTH-EXPERIMENT.md)에서는 시간을 줄였지만
+1.7B의 역할 혼동·목록 누락이 확인돼 기본 축약 적용을 보류했다.
 
 privAI는 외부 LLM API 없이 Windows PC에서 Ollama 경량 모델을 실행하고, 로컬 문서를 검색해 출처와 검증 상태를 함께 보여주는 개인용 AI 실험 프로젝트입니다.
 
@@ -129,7 +136,11 @@ python rag_evaluation.py --models qwen3:1.7b
 python rag_evaluation.py --models qwen3:1.7b --case-ids verification_states upload_flow
 ```
 
-현재 자동 테스트는 **56개**입니다. 벤치마크 결과는 로컬 `benchmark-results/`에 JSON·CSV·Markdown으로 생성되며 Git에는 포함되지 않습니다.
+현재 자동 테스트는 **100개**입니다. 벤치마크 결과는 로컬 `benchmark-results/`에 JSON·CSV·Markdown으로 생성되며 Git에는 포함되지 않습니다.
+
+[제한적 원문 추출](docs/SOURCE-TEXT-EXTRACTION.md): 명확한 역할·상태 문구 목록을 모델 호출 없이 원문에서 복사하며, 일반 설명과 비교 질문은 기존 생성 경로를 유지한다.
+
+[역할·필수 문구 검증 보강](docs/TEXT-CONTRACT-VALIDATION.md): 기존 축약 실험 답변의 역할 교환과 문구 누락을 재검사했다. 제한 규칙이며 전체 문장 의미 검증은 아니다.
 
 ## 실험 결과 요약
 

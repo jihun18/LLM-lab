@@ -1,0 +1,8 @@
+[
+  {"id":"holdout_modes","category":"정답 있음","question":"정밀 모드의 모델 이름과 5문항 평균 시간은?","expected_source":"13-Model-Modes.md","expected_heading":"목적","expected_keywords":["qwen2.5:7b-instruct","28.539"]},
+  {"id":"holdout_upload","category":"정답 있음","question":"TXT나 Markdown 문서를 올리는 경우 파일 용량 제한이 얼마인가요?","expected_source":"09-Document-Upload.md","expected_heading":"지원 형식","expected_keywords":["5MB"]},
+  {"id":"holdout_hardware","category":"정답 있음","question":"시스템 기준선에 적힌 CPU와 RAM은 무엇인가요?","expected_source":"01-System-Baseline.md","expected_heading":"시스템 기준선","expected_keywords":["i3-7100","16GB"]},
+  {"id":"holdout_policy","category":"근거 없음","question":"2029년 청년 AI 개발 지원금 지급액을 알려주세요.","expect_no_evidence":true},
+  {"id":"holdout_model","category":"근거 없음","question":"qwen2.5:14b-instruct의 이 장비에서 측정한 평균 시간은?","expect_no_evidence":true},
+  {"id":"holdout_live","category":"근거 없음","question":"지금 인천 공항의 항공편 지연 상황을 알려주세요.","expect_no_evidence":true}
+]

@@ -1,10 +1,38 @@
 from fastapi.testclient import TestClient
+import json
+import pytest
 from urllib.parse import quote
 
 import app as fastapi_module
 import flask_app as flask_module
 from core.document_ingest import DocumentIngestor
 from core.knowledge_base import KnowledgeBase
+
+
+@pytest.mark.parametrize("framework", ["fastapi", "flask"])
+@pytest.mark.parametrize("stream", [False, True])
+def test_text_extraction_routes_never_call_llm(monkeypatch, framework, stream):
+    module = fastapi_module if framework == "fastapi" else flask_module
+    knowledge = KnowledgeBase(module.ROOT / "wiki")
+    knowledge.reindex()
+    monkeypatch.setattr(module, "knowledge", knowledge)
+    def forbidden(*args, **kwargs):
+        raise AssertionError("추출 경로에서 LLM 호출")
+    monkeypatch.setattr(module.client, "chat", forbidden)
+    client = TestClient(module.app) if framework == "fastapi" else module.app.test_client()
+    response = client.post("/rag/chat" + ("/stream" if stream else ""),
+                           json={"prompt": "자동 검증 결과 화면에 나타나는 네 가지 상태 문구를 적어주세요."})
+    assert response.status_code == 200
+    if stream:
+        body = response.text if framework == "fastapi" else response.get_data(as_text=True)
+        events = [json.loads(line) for line in body.splitlines()]
+        assert "사람 검토 필요" in next(e["content"] for e in events if "content" in e)
+        assert events[-1]["verification"]["method"] == "deterministic_text_extraction"
+        assert events[-1]["tokens_per_second"] is None
+    else:
+        payload = response.json() if framework == "fastapi" else response.get_json()
+        assert payload["model"] == "deterministic-text"
+        assert len(payload["verification"]["items"]) == 4
 
 
 def test_fastapi_exposes_expected_routes(monkeypatch):

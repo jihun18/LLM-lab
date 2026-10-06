@@ -7,6 +7,7 @@ import time
 from .grounding import deterministic_metric_answer, verify_grounded_answer
 from .knowledge_base import KnowledgeBase, SearchResult, build_grounded_prompt, tokenize
 from .ollama_client import OllamaClient
+from .source_extraction import deterministic_text_answer
 
 
 SOURCE_CITATION_PATTERN = re.compile(r"\[출처:\s*([^\]#]+)#([^\]]+)\]")
@@ -118,7 +119,25 @@ def grounded_response(
     system: str | None,
     results: list[SearchResult],
     client: OllamaClient,
+    context_mode: str = "full",
+    allow_text_extraction: bool = True,
 ) -> dict:
+    from .evidence_scope import unsupported_query_anchors
+    missing = unsupported_query_anchors(prompt, results)
+    if missing:
+        return {"model": model, "answer": "Wiki에서 질문에 지정된 모델 또는 연도의 근거를 찾지 못했습니다.",
+                "sources": [], "elapsed_seconds": 0, "tokens_per_second": None, "eval_count": 0,
+                "verification": {"passed": False, "method": "no_evidence",
+                                 "issues": ["질문 조건의 근거가 없습니다: " + ", ".join(missing)]}}
+    started = time.perf_counter()
+    text_extraction = deterministic_text_answer(prompt, results) if allow_text_extraction else None
+    if text_extraction:
+        answer, verification = text_extraction
+        return {"model": "deterministic-text", "requested_model": model,
+                "execution_path": "deterministic_text", "answer": answer,
+                "elapsed_seconds": time.perf_counter() - started,
+                "tokens_per_second": None, "eval_count": 0,
+                "sources": source_payload(results[:1]), "verification": verification}
     deterministic = deterministic_metric_answer(prompt, results)
     if deterministic:
         answer, verification = deterministic
@@ -131,6 +150,9 @@ def grounded_response(
             "verification": verification,
         }
 
+    from .context_budget import select_context
+    original_count = len(results)
+    results = select_context(prompt, results, context_mode)
     grounded_prompt = build_grounded_prompt(prompt, results)
     response = client.chat(grounded_prompt, model, system)
     answer, citation_verification = validate_source_citations(
@@ -139,7 +161,10 @@ def grounded_response(
     verification = citation_verification or verify_grounded_answer(
         prompt, answer, results
     )
-    return {**response, "answer": answer, "verification": verification}
+    return {**response, "answer": answer, "verification": verification,
+            "sources": source_payload(results),
+            "context": {"mode": context_mode, "retrieved_count": original_count,
+                        "sent_count": len(results), "prompt_characters": len(grounded_prompt)}}
 
 
 def rag_response(
@@ -174,7 +199,7 @@ def rag_response(
         }
 
     response = grounded_response(prompt, model, system, results, client)
-    return {**response, "sources": sources, "search_mode": search_mode,
+    return {**response, "sources": response.get("sources", sources), "search_mode": search_mode,
             "search_seconds": round(search_seconds, 3),
             "elapsed_seconds": round(response["elapsed_seconds"] + search_seconds, 3)}
 

@@ -1,0 +1,14 @@
+[
+  {"id":"fresh_hardware","category":"새 표현","question":"이 실험 장비의 프로세서 제품명과 설치 메모리를 함께 알려주세요.","expected_source":"01-System-Baseline.md","expected_heading":"시스템 기준선","expected_keywords":["i3-7100","16GB"]},
+  {"id":"fresh_roles","category":"새 표현","question":"FastAPI, Flask, Streamlit을 이 프로젝트에서는 각각 무슨 용도로 사용하나요?","expected_source":"02-Framework-Comparison.md","expected_heading":"결론","acceptable_sources":[{"source":"02-Framework-Comparison.md","heading":"구현 비교"}],"expected_keywords":["FastAPI","Flask","Streamlit"]},
+  {"id":"fresh_badges","category":"새 표현","question":"자동 검증 결과 화면에 나타나는 네 가지 상태 문구를 적어주세요.","expected_source":"10-Claim-Verification.md","expected_heading":"화면 상태","expected_keywords":["표 수치","금액","검증 실패","사람 검토"]},
+  {"id":"fresh_mode_table","category":"표 정보","question":"빠른 모드와 균형 모드의 Ollama 태그를 각각 적어주세요.","expected_source":"13-Model-Modes.md","expected_heading":"목적","expected_keywords":["qwen3:1.7b","qwen3:4b-instruct"]},
+  {"id":"fresh_pdf_limit","category":"새 표현","question":"문서 추가 기능에서 PDF 파일의 최대 크기와 페이지 수는 얼마인가요?","expected_source":"09-Document-Upload.md","expected_heading":"지원 형식","expected_keywords":["5MB","100"]},
+  {"id":"fresh_scan","category":"새 표현","question":"텍스트 레이어가 없는 이미지 PDF를 지금 업로드해도 내용 검색이 되나요?","expected_source":"09-Document-Upload.md","expected_heading":"제한사항","expected_keywords":["OCR"]},
+  {"id":"fresh_duplicate","category":"새 표현","question":"이미 올린 파일을 다시 제출했을 때 중복인지 판단하는 기준은 무엇인가요?","expected_source":"09-Document-Upload.md","expected_heading":"처리 흐름","expected_keywords":["SHA-256"]},
+  {"id":"fresh_private","category":"근거 없음","question":"프로젝트 개발자의 집 현관 비밀번호는 무엇인가요?","expect_no_evidence":true},
+  {"id":"fresh_weather","category":"근거 없음","question":"모레 광주의 강수 확률은 몇 퍼센트인가요?","expect_no_evidence":true},
+  {"id":"fresh_policy_year","category":"근접하지만 근거 없음","question":"2028년 청년 AI 개발 지원금의 월 지급액과 신청 마감일은 언제인가요?","expect_no_evidence":true},
+  {"id":"fresh_future_bench","category":"근접하지만 근거 없음","question":"아직 실험하지 않은 qwen3:32b의 이 PC 실측 평균 응답시간은 얼마인가요?","expect_no_evidence":true},
+  {"id":"fresh_other_pc","category":"근접하지만 근거 없음","question":"김민수의 노트북 CPU 모델과 RAM 용량은 무엇인가요?","expect_no_evidence":true}
+]

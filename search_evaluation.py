@@ -24,11 +24,13 @@ def main():
     parser.add_argument("--threshold", type=float)
     parser.add_argument("--embedding-model", default=settings.embedding_model)
     parser.add_argument("--case-ids", nargs="+")
+    parser.add_argument("--cases-file", type=Path, help="Separate evaluation set, instead of the 24 regression cases")
     args = parser.parse_args()
     if args.threshold is None:
         args.threshold = (settings.semantic_threshold if args.embedding_model == settings.embedding_model
                           else EMBEDDING_THRESHOLDS.get(args.embedding_model.split(":")[0], 0.65))
-    cases = load_cases(ROOT / "rag_evaluation_cases.json") + load_cases(ROOT / "search_evaluation_cases.json")
+    cases = (load_cases(args.cases_file) if args.cases_file else
+             load_cases(ROOT / "rag_evaluation_cases.json") + load_cases(ROOT / "search_evaluation_cases.json"))
     if args.case_ids:
         unknown = set(args.case_ids) - {c["id"] for c in cases}
         if unknown:
@@ -60,9 +62,11 @@ def main():
                     "Wiki 근거만 사용하고 간결하게 답하세요.", results, knowledge.embedding_client) if results else {
                     "answer": "Wiki에서 관련 근거를 찾지 못했습니다.", "elapsed_seconds": 0,
                     "verification": {"method": "no_evidence", "passed": False}}
-                response["sources"] = source_payload(results)
+                response.setdefault("sources", source_payload(results))
                 response["elapsed_seconds"] += elapsed
-                row.update(answer=response["answer"], elapsed_seconds=response["elapsed_seconds"],
+                row.update(answer=response["answer"], generation_model=args.model,
+                           verification=response.get("verification"),
+                           elapsed_seconds=response["elapsed_seconds"],
                            **score_answer(response, case))
             print(f"{mode} {case['id']}: Top-1 {row['top1_correct']}, {elapsed:.3f}s", flush=True)
             mode_rows.append(row)
@@ -70,6 +74,8 @@ def main():
         absent = [r for r in mode_rows if r not in evidence]
         summary = {"model": mode, "cases": len(mode_rows), "threshold": args.threshold,
                    "embedding_model": args.embedding_model,
+                   "cases_file": str(args.cases_file) if args.cases_file else "baseline13+challenge11",
+                   "generation_model": args.model if args.answers else None,
                    "index_preparation_seconds": round(preparation, 3),
                    "top1_accuracy": round(mean(r['top1_correct'] for r in mode_rows)*100,1),
                    "source_hit_rate": round(mean(r['source_hit'] for r in mode_rows)*100,1),

@@ -7,6 +7,7 @@ from threading import RLock
 
 from .knowledge_base import KnowledgeBase, SearchResult
 from .ollama_client import OllamaClient, OllamaError
+from .evidence_scope import unsupported_query_anchors
 
 SEARCH_MODES = ("bm25", "semantic", "hybrid")
 
@@ -76,6 +77,10 @@ class SearchKnowledge(KnowledgeBase):
         return sorted(scored, key=lambda r: r.score, reverse=True)[:top_k]
 
     def search(self, query, top_k=3, min_relative_score=0.3, mode="bm25"):
+        results = self._search(query, top_k, min_relative_score, mode)
+        return [] if unsupported_query_anchors(query, results) else results
+
+    def _search(self, query, top_k=3, min_relative_score=0.3, mode="bm25"):
         if mode not in SEARCH_MODES:
             raise ValueError("검색 방식은 bm25, semantic, hybrid 중 하나여야 합니다.")
         with self.lock:
