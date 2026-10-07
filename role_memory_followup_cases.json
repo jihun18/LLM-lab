@@ -1,0 +1,21 @@
+{
+ "version":1,
+ "purpose":"008d4a5 이후 최초 추가 경계 평가. 내부 코드 구조를 아는 평가이며 독립 정확도 평가가 아니다. 실행 전 기준을 고정하고 결과에 맞춰 변경하지 않는다. fixture 수치는 가상이다.",
+ "fixtures":{
+  "roles":[{"source":"fixture/followup-roles.md","heading":"역할","text":"| 항목 | PaperApi | LabScreen |\n|---|---|---|\n| 역할 | 문서 API | 실험 화면 |"}],
+  "third_column":[{"source":"fixture/third.md","heading":"측정 조건","text":"| 모델 | 조건 | framework | RAM 사용량 |\n|---|---|---|---|\n| trial:2b | 입력 80자 | PaperApi | 128 MiB |\n| trial:2b | 입력 80자 | LabScreen | 256 MiB |"}],
+  "zero":[{"source":"fixture/zero.md","heading":"측정","text":"| 대상명 | RSS |\n|---|---|\n| PaperApi | 0 KB |\n| LabScreen | 64 KB |"}],
+  "commas":[{"source":"fixture/commas.md","heading":"측정","text":"| 도구명 | RSS |\n|---|---|\n| PaperApi | 1,024 KiB |\n| LabScreen | 2,048 KiB |"}],
+  "reverse_conflict":[{"source":"fixture/reverse.md","heading":"역할 설명","text":"- 역할: **PaperApi** — 실험 화면\n- 역할: **LabScreen** — 실험 화면"}]
+ },
+ "cases":[
+  {"id":"f01","scope":"wiki","question":"Flask와 Streamlit의 업무와 RSS 사용량을 각각 알려주세요.","required":["Flask의 역할","Streamlit의 역할","Flask의 대상별 메모리 사용량","Streamlit의 대상별 메모리 사용량"],"expected_status":"partial"},
+  {"id":"f02","scope":"wiki","question":"FastAPI의 용도와 RAM 사용량을 원문 근거로 알려줘.","required":["FastAPI","주력 REST API","메모리","근거"],"expected_status":"partial","semantic_review_required":true},
+  {"id":"f03","scope":"wiki","question":"Flask, FastAPI, Streamlit이 맡는 일과 메모리 사용량을 설명해줘.","required":["Flask의 역할","FastAPI의 역할","Streamlit의 역할","Flask의 대상별 메모리 사용량","FastAPI의 대상별 메모리 사용량","Streamlit의 대상별 메모리 사용량"],"expected_status":"partial"},
+  {"id":"f04","scope":"wiki","question":"Streamlit과 Quart의 역할 및 메모리 사용량을 각각 확인해줘.","required":["Streamlit의 역할","Quart의 역할 (검색 근거 부족)","Quart의 대상별 메모리 사용량 (검색 근거 부족)"],"expected_status":"partial"},
+  {"id":"f05","scope":"fixture","fixtures":["roles","third_column"],"question":"PaperApi와 LabScreen의 용도와 메모리 사용량을 각각 알려줘.","required":["128 MiB","256 MiB","trial:2b","입력 80자"],"expected_status":"source_copied","sources":["fixture/third.md#측정 조건"]},
+  {"id":"f06","scope":"fixture","fixtures":["roles","zero"],"question":"LabScreen과 PaperApi의 역할 및 메모리 사용량을 알려줘.","required":["0 KB","64 KB"],"expected_status":"source_copied","sources":["fixture/zero.md#측정"]},
+  {"id":"f07","scope":"fixture","fixtures":["roles","commas"],"question":"PaperApi, LabScreen의 업무와 메모리 사용량도 설명해주세요.","required":["PaperApi의 대상별 메모리 사용량 (검색 근거 부족)","LabScreen의 대상별 메모리 사용량 (검색 근거 부족)"],"forbidden":["1,024 KiB","2,048 KiB"],"expected_status":"partial","intent":"현재 지원하지 않는 쉼표 숫자 형식은 임의 해석하지 않는다. 측정값을 제대로 활용한 성공과 구분한다."},
+  {"id":"f08","scope":"fixture","fixtures":["roles","reverse_conflict"],"question":"PaperApi와 LabScreen의 역할과 RAM 사용량을 알려주세요.","required":["PaperApi의 역할 (원문 값 충돌)"],"forbidden":["PaperApi의 역할: 문서 API"],"expected_status":"partial","semantic_review_required":true,"intent":"역순 역할 목록과 표가 다른 경우에도 임의 선택하지 않는지 탐색. 현재 명시된 미지원 경계다."}
+ ]
+}

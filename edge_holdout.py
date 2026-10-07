@@ -16,8 +16,9 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--live", action="store_true")
     parser.add_argument("--case-ids", nargs="+")
+    parser.add_argument("--cases-file", default="edge_holdout_cases.json")
     args = parser.parse_args()
-    path = ROOT / "edge_holdout_cases.json"
+    path = (ROOT / args.cases_file).resolve()
     package = json.loads(path.read_text(encoding="utf-8"))
     cases = package["cases"]
     if args.case_ids:
@@ -41,7 +42,7 @@ def main():
             response = rag_response(case["question"], "qwen3:1.7b", "Wiki 근거만 사용하고 간결하고 정확한 한국어로 답하세요.", 3, knowledge, client)
             scored = score(case, response)
             # Safe rejection does not count as fulfilling a role/memory request.
-            scored["checks"]["not_blocked"] = response.get("answer_status") != "blocked"
+            scored["checks"]["not_blocked"] = response.get("answer_status") != "blocked" or case.get("expected_status") == "blocked"
             scored["status"] = "pass" if all(scored["checks"].values()) else "fail"
             row = {"id":case["id"],"scope":case["scope"],"question":case["question"],**scored,"response":response}
         except GenerationNeeded as exc:
@@ -52,7 +53,7 @@ def main():
         rows.append(row)
         print(f"{case['id']}: {row['status']} ({row['wall_seconds']}s)",flush=True)
     after = fingerprint(files)
-    report = {"protocol":{"date":"2026-10-07","case_sha256":case_hash,"production_wiki_sha256":before,"unchanged_after_run":before==after and case_hash==hashlib.sha256(path.read_bytes()).hexdigest(),"mode":"live_if_needed" if args.live else "offline","model":"qwen3:1.7b","search_mode":"bm25","top_k":3,"limits":"内部 boundary checks, not external accuracy. Fixtures bypass retrieval. Automatic substring checks require semantic review."},"results":rows}
+    report = {"protocol":{"date":"2026-10-07","cases_file":path.name,"case_sha256":case_hash,"production_wiki_sha256":before,"unchanged_after_run":before==after and case_hash==hashlib.sha256(path.read_bytes()).hexdigest(),"mode":"live_if_needed" if args.live else "offline","model":"qwen3:1.7b","search_mode":"bm25","top_k":3,"limits":"Internal boundary checks, not external accuracy. Fixtures bypass retrieval. Automatic substring checks require semantic review."},"results":rows}
     output = ROOT / "benchmark-results" / f"edge-holdout-{datetime.now():%Y%m%d-%H%M%S}.json"
     output.parent.mkdir(exist_ok=True)
     output.write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding="utf-8")
