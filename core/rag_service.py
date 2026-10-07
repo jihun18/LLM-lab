@@ -143,6 +143,20 @@ def memory_guard_response(prompt, model, results):
             "tokens_per_second": None, "eval_count": 0, "verification": verification}
 
 
+def role_conflict_response(prompt, model, results):
+    from .query_requirements import role_conflicts
+    conflicts = role_conflicts(prompt, results)
+    if not conflicts:
+        return None
+    labels = [name + "의 역할 (원문 값 충돌)" for name in conflicts]
+    return {"model": "deterministic-role-guard", "requested_model": model,
+            "execution_path": "role_conflict_guard", "answer_status": "blocked",
+            "answer": "검색된 표와 목록의 역할 표현이 달라 임의 선택하지 않았습니다.\n" + "\n".join("- " + label for label in labels) + "\n원문 표현의 의미 차이는 별도 검토가 필요하며 질문의 다른 요구도 확인하지 못했습니다.",
+            "sources": [], "elapsed_seconds": 0, "eval_count": 0, "tokens_per_second": None,
+            "verification": {"passed": False, "method": "role_conflict_guard",
+                             "display_label": "역할 원문 값 충돌 · 임의 선택 안 함", "issues": labels}}
+
+
 def grounded_response(
     prompt: str,
     model: str,
@@ -160,6 +174,9 @@ def grounded_response(
                 "verification": {"passed": False, "method": "no_evidence",
                                  "issues": ["질문 조건의 근거가 없습니다: " + ", ".join(missing)]}}
     started = time.perf_counter()
+    conflict_guard = role_conflict_response(prompt, model, results)
+    if conflict_guard:
+        return conflict_guard
     # Applies even to frozen-context calls with extraction disabled, unknown
     # role paraphrases, one target, and unsupported target naming formats.
     guarded = memory_guard_response(prompt, model, results)
@@ -312,6 +329,11 @@ def rag_response(
     # Fallback precedes no-evidence and generic deterministic/model paths.
     # Don't let an unsupported requested model/year bypass its anchor guard.
     if not unsupported_query_anchors(prompt, results):
+        conflict_guard = role_conflict_response(prompt, model, results)
+        if conflict_guard:
+            return {**conflict_guard, "search_mode": search_mode, "retrieval_followups": trace,
+                    "search_seconds": round(time.perf_counter() - started, 3),
+                    "elapsed_seconds": round(time.perf_counter() - started, 3)}
         guarded = memory_guard_response(prompt, model, results)
         if guarded:
             return {**guarded, "search_mode": search_mode, "retrieval_followups": trace,

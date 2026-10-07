@@ -5,7 +5,7 @@ Conservative eligibility checks, not general semantic entailment.
 import re
 from .table_comparison import _tables
 from .grounding import extract_table_facts
-from .role_lists import plain_role_pairs, memory_rows
+from .role_lists import plain_role_pairs, memory_rows, role_candidates, role_value_key
 from .memory_requirements import asks_memory, named_targets
 
 
@@ -62,6 +62,17 @@ def role_requirements(question, results, entities=None):
             "requires_memory": requires_memory,
             "requires_reason": requires_reason, "missing": missing,
             "scope": "명시적 역할 표·역할 목록, 대상별 속도 표, 제한된 이유 표현만 확인"}
+
+
+def role_conflicts(question, results):
+    if not asks_project_role(question):
+        return {}
+    conflicts = {}
+    for name in named_targets(question):
+        candidates = role_candidates(name, results)
+        if len({role_value_key(value) for value, _ in candidates}) > 1:
+            conflicts[name] = candidates
+    return conflicts
 
 
 def missing_answer_items(answer, requirements):

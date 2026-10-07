@@ -2,7 +2,8 @@
 import re
 from .query_requirements import role_requirements
 from .table_comparison import _tables
-from .role_lists import plain_role_pairs, memory_rows
+from .role_lists import memory_rows, role_candidates, role_value_key
+from .query_requirements import role_conflicts
 
 
 def bounded_question(question, check):
@@ -60,12 +61,12 @@ def requirement_source_answer(question, results):
         return None
     # Preserve the ordinary simple-comparison path. This is for missing targets
     # and speed/reason additions, not every role query.
-    if not (check["missing"] or check["requires_speed"] or check["requires_reason"] or check.get("requires_memory")):
+    if not (check["missing"] or check["requires_speed"] or check["requires_reason"] or check.get("requires_memory") or role_conflicts(question, results)):
         return None
     items, missing, used = [], [], []
 
-    def copy_item(label, candidates):
-        values = {value for value, _ in candidates}
+    def copy_item(label, candidates, value_key=lambda value: value):
+        values = {value_key(value) for value, _ in candidates}
         if len(values) != 1:
             missing.append(label + (" (원문 값 충돌)" if values else " (검색 근거 부족)"))
             return
@@ -75,9 +76,8 @@ def requirement_source_answer(question, results):
             used.append(result)
 
     for name in check["entities"]:
-        roles, speeds, memories, list_roles = [], [], [], []
+        roles, speeds, memories = [], [], []
         for result in results:
-            list_roles.extend((role, result) for entity, role in plain_role_pairs(result.text) if entity.lower() == name.lower())
             memories.extend((value, result) for value in memory_rows(name, result))
             for headers, rows in _tables(result.text):
                 if headers[0] == "항목":
@@ -92,9 +92,11 @@ def requirement_source_answer(question, results):
                             # Copy the entire row (including model/time columns),
                             # not a context-free number attributed to the framework.
                             speeds.append(("; ".join(f"{headers[i]} — {row[i]}" for i in range(1, len(headers))), result))
-        # Explicit project comparison cells remain primary. Narrative role
-        # lists can be differently worded; only use them when no table exists.
-        copy_item(name + "의 역할", roles or list_roles)
+        # Check every supported format before choosing a displayed raw value.
+        # Table values remain the display preference only after agreement.
+        all_roles = role_candidates(name, results)
+        ordered_roles = roles + [candidate for candidate in all_roles if candidate not in roles]
+        copy_item(name + "의 역할", ordered_roles, role_value_key)
         if check["requires_speed"]:
             copy_item(name + "의 기록된 생성속도 행", speeds)
         if check.get("requires_memory"):

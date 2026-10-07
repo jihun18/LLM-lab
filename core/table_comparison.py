@@ -24,6 +24,9 @@ def _tables(text):
 
 
 def deterministic_role_comparison(question, results):
+    from .query_requirements import role_conflicts
+    if role_conflicts(question, results):
+        return None
     if not any(word in question for word in ("역할", "용도")) or not any(word in question for word in ("차이", "비교", "다른지")):
         return None
     candidates = []
