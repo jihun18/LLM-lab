@@ -6,17 +6,18 @@ import re
 from .table_comparison import _tables
 from .grounding import extract_table_facts
 from .role_lists import plain_role_pairs, memory_rows
+from .memory_requirements import asks_memory, named_targets
 
 
 def asks_project_role(question):
     compact = re.sub(r"\s+", "", question)
-    return any(word in compact for word in ("역할", "용도", "업무", "무엇을담당", "담당하는일", "어떤일을"))
+    return any(word in compact for word in ("역할", "용도", "업무", "무엇을담당", "담당하는일", "어떤일을", "맡는작업", "맡는일"))
 
 
 def role_requirements(question, results, entities=None):
     if not asks_project_role(question):
         return None
-    names = entities if entities is not None else list(dict.fromkeys(re.findall(r"[A-Za-z][A-Za-z0-9_.-]*", question)))
+    names = entities if entities is not None else named_targets(question)
     names = [name for name in names if name.lower() not in {"api", "rest", "ui", "token", "s"}]
     role_names = set()
     for result in results:
@@ -26,14 +27,15 @@ def role_requirements(question, results, entities=None):
                 role_names.update(name.lower() for name in headers[1:])
         role_names.update(name.lower() for name in re.findall(
             r"(?m)^-\s+[^:\n]+:\s*\*\*([^*\n]+)\*\*\s*$", result.text))
-    # Only activate for explicit multi-tool project comparisons. Other domains
-    # (model modes, processes, Korean-only entities) keep existing checks.
-    if entities is None and sum(name.lower() in role_names for name in names) < 2:
+    # Ordinary role comparisons still need two known tools. Memory compound
+    # requests also allow one known tool; other forms use the common fallback.
+    minimum = 1 if asks_memory(question) else 2
+    if entities is None and sum(name.lower() in role_names for name in names) < minimum:
         return None
     missing = [f"{name}의 역할" for name in names if name.lower() not in role_names]
     requires_speed = "속도" in question or "token/s" in question.lower()
     requires_response_speed = "응답속도" in re.sub(r"\s+", "", question)
-    requires_memory = "메모리" in question or "rss" in question.lower() or "ram 사용" in question.lower()
+    requires_memory = asks_memory(question)
     if requires_memory:
         for name in names:
             if not any(memory_rows(name, result) for result in results):

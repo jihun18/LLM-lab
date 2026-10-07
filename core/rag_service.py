@@ -130,6 +130,19 @@ def source_payload(results: list[SearchResult]) -> list[dict]:
     ]
 
 
+def memory_guard_response(prompt, model, results):
+    from .memory_requirements import memory_fallback
+    guarded = memory_fallback(prompt, results)
+    if guarded is None:
+        return None
+    answer, used, verification = guarded
+    return {"model": "deterministic-memory-guard", "requested_model": model,
+            "execution_path": "memory_requirements_guard", "answer": answer,
+            "answer_status": "partial" if used else "blocked",
+            "sources": source_payload(used), "elapsed_seconds": 0,
+            "tokens_per_second": None, "eval_count": 0, "verification": verification}
+
+
 def grounded_response(
     prompt: str,
     model: str,
@@ -147,6 +160,11 @@ def grounded_response(
                 "verification": {"passed": False, "method": "no_evidence",
                                  "issues": ["질문 조건의 근거가 없습니다: " + ", ".join(missing)]}}
     started = time.perf_counter()
+    # Applies even to frozen-context calls with extraction disabled, unknown
+    # role paraphrases, one target, and unsupported target naming formats.
+    guarded = memory_guard_response(prompt, model, results)
+    if guarded:
+        return guarded
     from .query_requirements import role_requirements, requirements_notice, missing_answer_items
     requirements = role_requirements(prompt, results)
     if requirements and requirements["missing"]:
@@ -247,8 +265,13 @@ def grounded_response(
     blocked = verification.get("passed") is False
     if blocked and citation_verification is None:
         answer = "답변이 Wiki 근거 검증을 통과하지 못해 표시하지 않았습니다. 질문을 항목별로 나누거나 근거 문서를 보완해주세요."
+    if not blocked and verification.get("passed") is True and verification.get("method") in {"structured_claim_verification", "metric_unit_validation"}:
+        verification = {"passed": True, "method": "numeric_subset_semantic_review_needed",
+                        "display_label": "수치 근거만 확인 · 질문 전체 의미는 사람 검토 필요",
+                        "numeric_verification": verification, "issues": [],
+                        "scope": "단위 수치의 근거 일치만 확인. 질문 전체 완전성·서술 의미는 미검증."}
     return {**response, "answer": answer, "verification": verification,
-            "answer_status": "blocked" if blocked else "review_required" if verification.get("passed") is None else "verified",
+            "answer_status": "blocked" if blocked else "review_required" if verification.get("passed") is None or verification.get("method") == "numeric_subset_semantic_review_needed" else "verified",
             "sources": source_payload(selected_results),
             "context": {"mode": context_mode, "retrieved_count": original_count,
                         "citation_format": "structured_json" if structured else "inline",
@@ -286,6 +309,14 @@ def rag_response(
                     "search_mode": search_mode, "retrieval_followups": trace,
                     "search_seconds": elapsed, "elapsed_seconds": elapsed,
                     "eval_count": 0, "tokens_per_second": None}
+    # Fallback precedes no-evidence and generic deterministic/model paths.
+    # Don't let an unsupported requested model/year bypass its anchor guard.
+    if not unsupported_query_anchors(prompt, results):
+        guarded = memory_guard_response(prompt, model, results)
+        if guarded:
+            return {**guarded, "search_mode": search_mode, "retrieval_followups": trace,
+                    "search_seconds": round(time.perf_counter() - started, 3),
+                    "elapsed_seconds": round(time.perf_counter() - started, 3)}
     search_seconds = time.perf_counter() - started
     sources = source_payload(results)
     if not results:
