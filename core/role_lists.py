@@ -16,12 +16,22 @@ def plain_role_pairs(text):
     return pairs
 
 
-def memory_rows(name, result):
+def memory_rows(name, result, statistic=None):
     rows_found = []
     for headers, rows in _tables(result.text):
         columns = [i for i, header in enumerate(headers)
                    if "메모리 사용" in header or "메모리사용" in header
                    or "rss" in header.lower() or "ram 사용" in header.lower()]
+        all_memory_columns = set(columns)
+        if statistic:
+            # A generic RSS cell, row maximum, or document heading cannot
+            # establish a measurement statistic. Require one explicit header.
+            metric = r"(?:메모리(?:사용량)?|RSS|RAM(?:사용량)?)"
+            columns = [i for i in columns if re.fullmatch(
+                "(?:" + statistic + metric + "|" + metric + statistic + ")",
+                re.sub(r"\s+", "", headers[i]), re.I)]
+            if len(columns) != 1:
+                continue
         # Recognize an explicit identity column, not the first matching cell.
         identity = [i for i, header in enumerate(headers)
                     if header.strip().lower() in {"도구", "프레임워크", "대상", "tool", "framework", "대상명", "도구명"}]
@@ -32,7 +42,9 @@ def memory_rows(name, result):
             if row[target_column].lower() != name.lower():
                 continue
             if any(re.fullmatch(r"\d+(?:\.\d+)?\s*(?:GB|MB|KB|GiB|MiB|KiB)", row[i], re.I) for i in columns):
-                rows_found.append("; ".join(f"{headers[i]} — {row[i]}" for i in range(len(headers)) if i != target_column))
+                rows_found.append("; ".join(f"{headers[i]} — {row[i]}" for i in range(len(headers))
+                                            if i != target_column and
+                                            (not statistic or i not in all_memory_columns or i in columns)))
     return rows_found
 
 

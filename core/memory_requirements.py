@@ -13,6 +13,21 @@ def named_targets(question):
                              if name.lower() not in ignored))
 
 
+def memory_statistics(question):
+    """Finite Korean qualifiers attached to memory metrics, not speed averages."""
+    compact = re.sub(r"\s+", "", question)
+    qualifiers = r"((?:(?:최대|평균|최소)(?:[·,/]|및|과|와)?)+)"
+    metric = r"(?:메모리(?:사용량)?|RSS|RAM)"
+    matched = re.findall(qualifiers + metric, compact, re.I)
+    matched += re.findall(metric + r"(?:사용량)?(?:의)?" + qualifiers, compact, re.I)
+    values = {value for fragment in matched for value in re.findall(r"최대|평균|최소", fragment)}
+    return [value for value in ("최대", "평균", "최소") if value in values]
+
+
+def memory_label(name, statistic=None):
+    return name + "의 대상별 " + ((statistic + " ") if statistic else "") + "메모리 사용량"
+
+
 def memory_fallback(question, results):
     """Never generate memory prose when bounded full-query extraction failed.
 
@@ -24,15 +39,17 @@ def memory_fallback(question, results):
     names = named_targets(question)
     missing, items, used = [], [], []
     for name in names:
-        candidates = [(row, result) for result in results for row in memory_rows(name, result)]
-        values = {row for row, _ in candidates}
-        if len(values) != 1:
-            missing.append(name + "의 대상별 메모리 사용량" + (" (원문 값 충돌)" if values else " (검색 근거 부족)"))
-        else:
-            row, result = candidates[0]
-            items.append(f"- {name}의 대상별 메모리 사용량: {row}\n  [출처: {result.source}#{result.heading}]")
-            if result not in used:
-                used.append(result)
+        for statistic in memory_statistics(question) or [None]:
+            candidates = [(row, result) for result in results for row in memory_rows(name, result, statistic)]
+            values = {row for row, _ in candidates}
+            label = memory_label(name, statistic)
+            if len(values) != 1:
+                missing.append(label + (" (원문 값 충돌)" if values else " (검색 근거 부족)"))
+            else:
+                row, result = candidates[0]
+                items.append(f"- {label}: {row}\n  [출처: {result.source}#{result.heading}]")
+                if result not in used:
+                    used.append(result)
     if not names:
         missing.append("요청 대상의 메모리 측정 근거 (대상 식별 형식 미지원)")
     answer = ("검색된 메모리 측정 행만 제시합니다:\n" + "\n".join(items) if items else "검색된 근거에서 요청 대상의 메모리 측정 행을 확인하지 못했습니다.")

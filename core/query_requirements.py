@@ -6,7 +6,7 @@ import re
 from .table_comparison import _tables
 from .grounding import extract_table_facts
 from .role_lists import plain_role_pairs, memory_rows, role_candidates, role_value_key
-from .memory_requirements import asks_memory, named_targets
+from .memory_requirements import asks_memory, named_targets, memory_statistics, memory_label
 
 
 def asks_project_role(question):
@@ -39,10 +39,12 @@ def role_requirements(question, results, entities=None, *, allow_missing_roles=F
     requires_speed = "속도" in question or "token/s" in question.lower()
     requires_response_speed = "응답속도" in re.sub(r"\s+", "", question)
     requires_memory = asks_memory(question)
+    statistics = memory_statistics(question)
     if requires_memory:
         for name in names:
-            if not any(memory_rows(name, result) for result in results):
-                missing.append(f"{name}의 대상별 메모리 사용량")
+            for statistic in statistics or [None]:
+                if not any(memory_rows(name, result, statistic) for result in results):
+                    missing.append(memory_label(name, statistic))
     if requires_speed:
         facts = [fact for result in results for fact in extract_table_facts(result)]
         for name in names:
@@ -63,6 +65,7 @@ def role_requirements(question, results, entities=None, *, allow_missing_roles=F
     return {"entities": names, "requires_speed": requires_speed,
             "requires_response_speed": requires_response_speed,
             "requires_memory": requires_memory,
+            "memory_statistics": statistics,
             "requires_reason": requires_reason, "missing": missing,
             "scope": "명시적 역할 표·역할 목록, 대상별 속도 표, 제한된 이유 표현만 확인"}
 

@@ -4,9 +4,13 @@ from .query_requirements import role_requirements
 from .table_comparison import _tables
 from .role_lists import memory_rows, role_candidates, role_value_key
 from .query_requirements import role_conflicts
+from .memory_requirements import memory_label
 
 
 def bounded_question(question, check):
+    if check.get("requires_memory") and set(re.findall(r"최대|평균|최소", question)) != set(check["memory_statistics"]):
+        # Don't drop a qualifier that is not attached to a supported metric.
+        return False
     remainder = question
     for name in check["entities"]:
         remainder = re.sub(re.escape(name), "", remainder, flags=re.I)
@@ -20,6 +24,8 @@ def bounded_question(question, check):
     # Match the metric aliases recognized by asks_memory, without treating
     # arbitrary extra instructions as supported source-copy requirements.
     grammar += ("RSS", "RAM", "원문", "근거로", "확인해줘")
+    # Qualifiers are retained as separate evidence requirements below.
+    grammar += ("최대", "평균", "최소", "비교해줘", "비교해주세요")
     return bool(check["entities"]) and re.fullmatch("(?:" + "|".join(map(re.escape, grammar)) + ")*", remainder, re.I) is not None
 
 
@@ -35,8 +41,9 @@ def supplement_role_evidence(question, initial, knowledge, search_mode):
             queries.append(f"{name} 역할 용도")
         if f"{name}의 표 기반 생성속도" in check["missing"]:
             queries.append(f"{name} 생성속도 token/s")
-        if f"{name}의 대상별 메모리 사용량" in check["missing"]:
-            queries.append(f"{name} 메모리 사용량 RSS")
+        for statistic in check["memory_statistics"] or [None]:
+            if memory_label(name, statistic) in check["missing"]:
+                queries.append(f"{name} " + ((statistic + " ") if statistic else "") + "메모리 사용량 RSS")
     if check["requires_reason"] and "요청한 도구를 함께 사용하는 이유" in check["missing"]:
         queries.append(" ".join(check["entities"]) + " 함께 사용하는 이유 목적 분담")
     if check.get("requires_response_speed"):
@@ -79,9 +86,8 @@ def requirement_source_answer(question, results):
             used.append(result)
 
     for name in check["entities"]:
-        roles, speeds, memories = [], [], []
+        roles, speeds = [], []
         for result in results:
-            memories.extend((value, result) for value in memory_rows(name, result))
             for headers, rows in _tables(result.text):
                 if headers[0] == "항목":
                     columns = [i for i, header in enumerate(headers) if header.lower() == name.lower()]
@@ -103,7 +109,9 @@ def requirement_source_answer(question, results):
         if check["requires_speed"]:
             copy_item(name + "의 기록된 생성속도 행", speeds)
         if check.get("requires_memory"):
-            copy_item(name + "의 대상별 메모리 사용량", memories)
+            for statistic in check["memory_statistics"] or [None]:
+                memories = [(value, result) for result in results for value in memory_rows(name, result, statistic)]
+                copy_item(memory_label(name, statistic), memories)
     if check["requires_reason"]:
         reasons = []
         for result in results:
@@ -122,6 +130,8 @@ def requirement_source_answer(question, results):
         missing.append("전체 응답속도의 동일 조건 비교 근거 (생성속도 기록만으로 판단 불가)")
     if check.get("requires_memory"):
         answer += "\n\n메모리 사용량은 요청한 도구의 측정 행만 확인합니다. PC의 전체 RAM 용량이나 모델 파일 크기를 도구별 메모리 사용량으로 대신하지 않습니다."
+        if check["memory_statistics"]:
+            answer += "\n최대·평균·최소는 요청한 통계가 명시된 열만 확인하며, 일반 측정값을 바꿔 부르거나 임의 집계하지 않습니다."
     if missing:
         answer += "\n\n확인하지 못한 항목:\n" + "\n".join("- " + item for item in missing)
         answer += "\n해당 근거 문서를 보완해주세요. 확인한 항목만 답했으며 질문 전체가 해결된 것은 아닙니다."

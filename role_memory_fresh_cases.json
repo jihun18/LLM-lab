@@ -1,0 +1,18 @@
+{
+ "version":1,
+ "purpose":"4680cac 이후 수정에 사용하지 않은 최초 내부 경계 평가. 실행 전 질문과 기준 고정, 실행 중 운영 코드 및 Wiki 변경 금지. 외부 정확도 평가가 아니며 fixture 수치는 가상이다.",
+ "fixtures":{
+  "roles":[{"source":"fixture/fresh-roles.md","heading":"역할","text":"- **ChartApi**: 문서 API\n- **TrialUi**: 실험 화면"}],
+  "reverse_agree":[{"source":"fixture/fresh-reverse.md","heading":"역할 설명","text":"- 역할: **ChartApi** — 문서 API\n- 역할: **TrialUi** — 실험 화면"}],
+  "measurement":[{"source":"fixture/fresh-memory.md","heading":"측정 A","text":"| 조건 | TOOL | 모델 | RSS |\n|---|---|---|---|\n| 동시 요청 1 | ChartApi | mock:2b | 120.5 MiB |\n| 동시 요청 1 | TrialUi | mock:2b | 80.25 MiB |"}],
+  "other_condition":[{"source":"fixture/fresh-other.md","heading":"측정 B","text":"| 조건 | TOOL | 모델 | RSS |\n|---|---|---|---|\n| 동시 요청 2 | ChartApi | mock:2b | 120.5 MiB |\n| 동시 요청 2 | TrialUi | mock:2b | 80.25 MiB |"}]
+ },
+ "cases":[
+  {"id":"p01","scope":"wiki","question":"Flask와 FastAPI의 업무 및 rss 사용량을 원문 근거로 확인해줘.","required":["Flask의 역할","FastAPI의 역할","Flask의 대상별 메모리 사용량 (검색 근거 부족)","FastAPI의 대상별 메모리 사용량 (검색 근거 부족)"],"expected_status":"partial"},
+  {"id":"p02","scope":"wiki","question":"Streamlit가 맡는 작업과 RAM 사용량도 알려주세요.","required":["Streamlit의 역할","Streamlit의 대상별 메모리 사용량 (검색 근거 부족)"],"expected_status":"partial"},
+  {"id":"p03","scope":"wiki","question":"FastAPI와 Streamlit의 역할 및 RSS 사용량, 왜 함께 쓰는지 설명해주세요.","required":["FastAPI의 역할","Streamlit의 역할","함께 사용하는 이유의 원문 (검색 근거 부족)","대상별 메모리 사용량 (검색 근거 부족)"],"expected_status":"partial"},
+  {"id":"p04","scope":"wiki","question":"FastAPI와 Flask의 역할과 최대 메모리 사용량도 비교해줘.","required":["FastAPI의 역할","Flask의 역할","메모리","근거"],"expected_status":"partial","semantic_review_required":true,"intent":"최대라는 측정 조건을 잃지 않으면서 알려진 역할은 답하고 최대 메모리 근거 부족을 안내해야 한다. 단순 안전 차단은 전체 요구 충족이 아니다."},
+  {"id":"p05","scope":"fixture","fixtures":["roles","reverse_agree","measurement"],"question":"TrialUi와 ChartApi의 업무 및 RAM 사용량을 원문 근거로 알려주세요.","required":["TrialUi의 역할: 실험 화면","ChartApi의 역할: 문서 API","120.5 MiB","80.25 MiB","동시 요청 1","mock:2b"],"forbidden":["원문 값 충돌"],"expected_status":"source_copied","sources":["fixture/fresh-memory.md#측정 A"]},
+  {"id":"p06","scope":"fixture","fixtures":["roles","measurement","other_condition"],"question":"ChartApi와 TrialUi의 역할 및 RSS 사용량도 확인해줘.","required":["ChartApi의 역할: 문서 API","TrialUi의 역할: 실험 화면","ChartApi의 대상별 메모리 사용량 (원문 값 충돌)","TrialUi의 대상별 메모리 사용량 (원문 값 충돌)"],"forbidden":["120.5 MiB","80.25 MiB"],"expected_status":"partial","intent":"같은 값이라도 측정 조건이 다르면 하나를 임의로 선택하지 않는다."}
+ ]
+}
