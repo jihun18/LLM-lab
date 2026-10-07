@@ -54,7 +54,7 @@ def main():
         print(f"{case['id']}: {row['status']} ({row['wall_seconds']}s)",flush=True)
     after = fingerprint(files)
     report = {"protocol":{"date":"2026-10-07","cases_file":path.name,"case_sha256":case_hash,"production_wiki_sha256":before,"unchanged_after_run":before==after and case_hash==hashlib.sha256(path.read_bytes()).hexdigest(),"mode":"live_if_needed" if args.live else "offline","model":"qwen3:1.7b","search_mode":"bm25","top_k":3,"limits":"Internal boundary checks, not external accuracy. Fixtures bypass retrieval. Automatic substring checks require semantic review."},"results":rows}
-    output = ROOT / "benchmark-results" / f"edge-holdout-{datetime.now():%Y%m%d-%H%M%S}.json"
+    output = ROOT / "benchmark-results" / f"edge-holdout-{datetime.now():%Y%m%d-%H%M%S-%f}.json"
     output.parent.mkdir(exist_ok=True)
     output.write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding="utf-8")
     print(f"Report: {output}; production/wiki/cases unchanged: {report['protocol']['unchanged_after_run']}",flush=True)

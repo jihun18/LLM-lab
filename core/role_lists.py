@@ -5,7 +5,11 @@ from .table_comparison import _tables
 
 def plain_role_pairs(text):
     pairs = []
-    for name, role in re.findall(r"(?m)^-\s+\*{0,2}([A-Za-z][A-Za-z0-9_.-]*)\*{0,2}:\s*(.+)$", text):
+    explicit = re.findall(r"(?m)^-\s+\*{0,2}([A-Za-z][A-Za-z0-9_.-]*)\*{0,2}:\s*(.+)$", text)
+    # Only this explicit reversed layout carries both an identity and value.
+    # Do not reinterpret generic '- description: **Name**' Wiki bullets.
+    explicit += re.findall(r"(?m)^-\s+역할:\s*\*\*([A-Za-z][A-Za-z0-9_.-]*)\*\*\s+—\s+(.+)$", text)
+    for name, role in explicit:
         # A mere name, numeric resource amount, or arbitrary note is not a role.
         if any(term in role.lower() for term in ("api", "ui", "백엔드", "구현", "비교군", "시연", "화면", "학습")):
             pairs.append((name, role.strip()))

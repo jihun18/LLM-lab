@@ -16,12 +16,15 @@ def bounded_question(question, check):
                "역할", "용도", "차이", "비교", "각각", "둘", "두", "도", "의", "와", "과", "을", "를", "은", "는", "고", "주")
     grammar += ("무엇을담당하며", "무엇을담당", "담당하는일", "어떤일을", "하나요", "응답속도", "어때", "하며")
     grammar += ("업무", "메모리사용량", "메모리", "사용량")
-    grammar += ("맡는작업", "맡는일", "가")
-    return bool(check["entities"]) and re.fullmatch("(?:" + "|".join(map(re.escape, grammar)) + ")*", remainder) is not None
+    grammar += ("맡는작업", "맡는일", "가", "이", "및")
+    # Match the metric aliases recognized by asks_memory, without treating
+    # arbitrary extra instructions as supported source-copy requirements.
+    grammar += ("RSS", "RAM", "원문", "근거로", "확인해줘")
+    return bool(check["entities"]) and re.fullmatch("(?:" + "|".join(map(re.escape, grammar)) + ")*", remainder, re.I) is not None
 
 
 def supplement_role_evidence(question, initial, knowledge, search_mode):
-    check = role_requirements(question, initial)
+    check = role_requirements(question, initial, allow_missing_roles=True)
     if not check or not check["missing"] or not bounded_question(question, check):
         return initial, []
     # No hidden whole-index scan: at most four queries, three hits each, and

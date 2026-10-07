@@ -14,7 +14,7 @@ def asks_project_role(question):
     return any(word in compact for word in ("역할", "용도", "업무", "무엇을담당", "담당하는일", "어떤일을", "맡는작업", "맡는일"))
 
 
-def role_requirements(question, results, entities=None):
+def role_requirements(question, results, entities=None, *, allow_missing_roles=False):
     if not asks_project_role(question):
         return None
     names = entities if entities is not None else named_targets(question)
@@ -30,7 +30,10 @@ def role_requirements(question, results, entities=None):
     # Ordinary role comparisons still need two known tools. Memory compound
     # requests also allow one known tool; other forms use the common fallback.
     minimum = 1 if asks_memory(question) else 2
-    if entities is None and sum(name.lower() in role_names for name in names) < minimum:
+    # A role+memory request may initially retrieve measurement/context chunks
+    # only. Allow bounded follow-up retrieval to seek the named roles rather
+    # than requiring their evidence before the follow-up can start.
+    if entities is None and not (allow_missing_roles and asks_memory(question)) and sum(name.lower() in role_names for name in names) < minimum:
         return None
     missing = [f"{name}의 역할" for name in names if name.lower() not in role_names]
     requires_speed = "속도" in question or "token/s" in question.lower()
