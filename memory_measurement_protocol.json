@@ -1,0 +1,48 @@
+{
+  "protocol_id": "memory-rss-warm-v1",
+  "status": "planned_not_executed",
+  "first_phase": "FastAPI only; Ollama components recorded separately",
+  "model": "qwen3:1.7b",
+  "request": {
+    "endpoint": "/chat",
+    "stream": false,
+    "rag": false,
+    "prompt": "경량 LLM의 장점을 한국어로 두 문장만 설명해줘.",
+    "system": "간결하고 정확한 한국어로 답하세요.",
+    "num_ctx": 2048,
+    "num_predict": 256,
+    "temperature": 0.3,
+    "think": false,
+    "note": "Apply existing OllamaClient qwen3 /no_think suffix; verify effective settings before execution."
+  },
+  "warmup_requests": 1,
+  "measured_requests": 5,
+  "concurrent_requests": 1,
+  "sampling_interval_ms": 100,
+  "warm_idle_baseline_seconds": 5,
+  "minimum_idle_between_requests_seconds": 3,
+  "primary_window": "immediately before HTTP request through receipt of complete response",
+  "scopes": [
+    "web_server_root_and_verified_children",
+    "ollama_service_only",
+    "ollama_model_runner_and_verified_children"
+  ],
+  "metric": "psutil.Process.memory_info().rss",
+  "raw_unit": "bytes",
+  "display_unit": "MiB",
+  "statistics": ["sampled_min", "time_weighted_mean", "sampled_max"],
+  "baseline_and_request_statistics_separate": true,
+  "invalid_trial_policy": "retain error record; exclude from comparable statistics; no zero imputation or silent retries",
+  "record_actual_sample_times_and_pid_creation_times": true,
+  "record_model_digest_options_and_process_membership": true,
+  "require_complete_process_scope": true,
+  "forbid_automatic_wiki_publication": true,
+  "exclusions": ["browser", "measurement_client", "Codex", "unrelated processes", "model file size", "total installed RAM"],
+  "limits": [
+    "Sample maximum is not a guaranteed instantaneous peak.",
+    "Summed RSS may count shared pages more than once; not unique physical memory.",
+    "Warm requests do not measure model load or cold start.",
+    "Output token count may vary despite equal options.",
+    "Streamlit UI and RAG workload are outside this first-phase protocol."
+  ]
+}

@@ -142,6 +142,7 @@ python rag_evaluation.py --models qwen3:1.7b --case-ids verification_states uplo
 역할의 표·일반 목록 대조와 메모리 도구명 열·KiB 처리는 [역할 충돌·메모리 표 형식 개선](docs/ROLE-CONFLICT-MEMORY-COLUMNS.md)을 참고하세요.
 RSS·RAM 및 ‘역할 및 메모리’, ‘맡는 일’ 질문의 부분 답변 연결과 최신 회귀 결과는 [추가 경계 평가](docs/ROLE-MEMORY-FOLLOWUP-20261007.md)를 참고하세요.
 최대·평균·최소 메모리의 요구·출처 구분과 일반 측정값 대체 금지는 [메모리 측정 조건 개선](docs/MEMORY-STATISTICS-20261007.md)을 참고하세요.
+웹 서버·Ollama 서비스·모델 실행 프로세스를 분리할 실측 기준은 [메모리 측정 프로토콜](docs/MEMORY-MEASUREMENT-PROTOCOL.md)을 참고하세요. 기준만 정의했으며 실제 측정값은 아직 없습니다.
 
 [업무·메모리 요구 개선](docs/ROLE-MEMORY-GUARDS.md): 일반 역할 목록을 제한적으로 읽고 대상별 메모리 측정 행을 추적한다. 전체 RAM이나 모델 파일 크기로 메모리 사용량을 대신하지 않는다.
 
