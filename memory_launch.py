@@ -8,6 +8,7 @@ import httpx
 import psutil
 
 from core.memory_sampling import MeasurementError
+from core.ollama_process import is_ollama_runner
 
 ROOT = Path(__file__).resolve().parent
 OLLAMA_URL = "http://127.0.0.1:11434"
@@ -68,7 +69,7 @@ def check_model(client, prepare=False):
 
 def runner_pid(service):
     candidates = [p for p in service.children(recursive=True)
-                  if "ollama" in p.name().lower() and "runner" in p.cmdline()]
+                  if is_ollama_runner(service, p)]
     if len(candidates) != 1:
         raise MeasurementError("모델 runner를 하나로 확인하지 못했습니다. 추측하지 않습니다.")
     return candidates[0].pid

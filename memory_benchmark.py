@@ -12,6 +12,7 @@ import time
 import httpx
 import psutil
 from core.memory_sampling import MeasurementError, ProcessScopes, scope_summaries
+from core.ollama_process import is_ollama_runner
 
 ROOT = Path(__file__).resolve().parent
 WEB_URL = "http://127.0.0.1:8000"
@@ -41,12 +42,8 @@ def preflight(args, protocol, web_client, ollama_client):
     cmd = web.cmdline()
     if "uvicorn" not in cmd or "app:app" not in cmd or Path(web.cwd()).resolve() != ROOT:
         raise MeasurementError("web PID is not this project's single FastAPI server")
-    service_cmd = psutil.Process(args.ollama_pid).cmdline()
-    runner_cmd = psutil.Process(args.runner_pid).cmdline()
-    if "serve" not in service_cmd or "runner" not in runner_cmd:
-        raise MeasurementError("Ollama service/runner command identity not confirmed")
-    if not all("ollama" in psutil.Process(pid).name().lower() for pid in (args.ollama_pid,args.runner_pid)):
-        raise MeasurementError("unexpected Ollama executable identity")
+    if not is_ollama_runner(psutil.Process(args.ollama_pid), psutil.Process(args.runner_pid)):
+        raise MeasurementError("Ollama service/runner executable and command identity not confirmed")
     if any(p.pid == psutil.Process().pid for procs in roots.members().values() for p in procs):
         raise MeasurementError("measurement client belongs to measured scope")
     # Read only the allowed configuration keys; never persist environment dumps.
@@ -58,7 +55,8 @@ def preflight(args, protocol, web_client, ollama_client):
     if any(effective[k] != protocol["request"][k] for k in ("num_ctx","num_predict","temperature")) or effective["ollama_url"] != OLLAMA_URL:
         raise MeasurementError("web server effective settings differ from protocol")
     source_files = [ROOT/"app.py", ROOT/"memory_benchmark.py", *sorted((ROOT/"core").glob("*.py"))]
-    if any(path.stat().st_mtime > web.create_time() for path in source_files if path.name not in {"memory_sampling.py","memory_benchmark.py"}):
+    # Collector-only helpers are not imported by app.py; still hash them below.
+    if any(path.stat().st_mtime > web.create_time() for path in source_files if path.name not in {"memory_sampling.py","memory_benchmark.py","ollama_process.py"}):
         raise MeasurementError("server predates source files; restart before measuring")
     health = get_json(web_client,"/health")
     if health.get("framework") != "FastAPI" or health.get("status") != "ok":

@@ -30,6 +30,7 @@ class Proc:
     def cmdline(self): return self._cmd
     def cwd(self): return str(self._cwd)
     def create_time(self): return self.pid + 100
+    def exe(self): return str(ROOT / self._name)
     def children(self, recursive): return self.descendants
 
 
