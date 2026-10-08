@@ -13,7 +13,7 @@ import time
 
 import httpx
 import psutil
-from core.memory_sampling import MeasurementError, ProcessScopes, scope_summaries
+from core.memory_sampling import MeasurementError, ProcessScopes, scope_summaries, PROFILE_VERSION
 from core.ollama_process import is_ollama_runner
 
 ROOT = Path(__file__).resolve().parent
@@ -187,7 +187,7 @@ def main():
     effective_bytes = json.dumps(protocol, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
     protocol_bytes = base_bytes if args.model == SUPPORTED_MODELS[0] else effective_bytes
     report = {"status":"preflight", "sampling_scheduler":"absolute-deadline-v2",
-              "profiling":{"enabled":args.profile_timings, "version":"collector-phase-v1",
+              "profiling":{"enabled":args.profile_timings, "version":PROFILE_VERSION,
                            "cpu_metric":"time.thread_time; collector thread, not Ollama CPU",
                            "warning":"profiling adds observer overhead; compare explicit on/off runs"},
               "protocol":protocol, "protocol_sha256":hashlib.sha256(protocol_bytes).hexdigest(),

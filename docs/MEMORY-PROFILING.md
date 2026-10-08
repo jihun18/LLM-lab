@@ -25,14 +25,30 @@ ON 표본의 `timing_profile`:
 
 | 단계/필드 | 의미 |
 |---|---|
-| `version` | `collector-phase-v1` |
+| `version` | `collector-phase-v2` (이전 원자료는 v1) |
 | `thread_cpu_seconds` | 스냅샷 내부 수집기 스레드 CPU 시간 |
 | `phases[].membership` | 범위·자식·제외 호스트·중복 검사 전체 |
 | `phases[].identity_before` | RSS 직전 생성 시각 읽기 |
 | `phases[].rss_read` | 프로세스 memory_info 호출 |
 | `phases[].identity_after` | 새 Process 객체 및 생성 시각 재확인 |
 
-각 단계 항목은 phase/start/end/wall_seconds/thread_cpu_seconds/completed를 갖는다. 동일 phase는 구성원마다 반복된다. 단계 경과 합계와 전체 read_end-time의 차이는 계측 호출·자료 조립·그 밖의 처리 등을 포함하며 강제로 0으로 만들지 않는다. membership 내부의 개별 children 호출은 이번에도 하나의 단계에 포함된다.
+각 단계 항목은 phase/start/end/wall_seconds/thread_cpu_seconds/completed를 갖는다. 동일 phase는 구성원마다 반복된다. 단계 경과 합계와 전체 read_end-time의 차이는 계측 호출·자료 조립·그 밖의 처리 등을 포함하며 강제로 0으로 만들지 않는다.
+
+v2는 별도 `membership_phases` 배열에 다음 내부 단계를 기록한다. 전체 `phases[].membership`과 내부 단계는 포함 관계이므로 **둘을 더하지 않는다**. 내부 단계끼리는 비중첩이며 합계와 membership의 차이는 타이머·기록 조립·그 밖의 처리 등을 포함한다.
+
+| 내부 phase | 포함 작업 |
+|---|---|
+| `root_identity` | 루트 객체 생성 및 고정 생성 시각 확인 |
+| `parent_snapshot` | 새 Windows 부모 표 취득: API 준비·열거·핸들 종료 포함 |
+| `parent_index` | 부모→자식 인덱스 구성 및 루트 목록 존재 확인 |
+| `tree_build` | 세 트리 탐색, 자식 객체/최초 생성 시각, 생성 순서·순환 검사 |
+| `member_identity_recheck` | 관련 PID의 새 객체 생성 시각 재확인 |
+| `runner_membership` | runner 트리의 서비스 소속 확인 |
+| `console_host_verification` | 제외 호스트 경로·직속 부모·PID 및 제외 목록 확인 |
+| `overlap_check` | 세 범위 및 제외 PID의 중복 확인 |
+| `legacy_children` | 기존 psutil 경로의 세 자식 조회 (새 부모 표 경로에서는 없음) |
+
+부모 표 경로에만 존재하는 단계는 기존 경로에서 생략한다. `tree_build`는 순수 리스트 계산만이 아니라 최초 프로세스 정보 읽기도 포함한다. 단계 이름만으로 특정 OS 호출 비용을 단정하지 않는다. 생성자/직접 사전 검사의 `members()` 호출에는 이 배열을 만들지 않고 ON 표본의 범위 검사에만 기록한다. 실패 표본에서도 실패한 내부 단계와 전체 membership의 completed=false를 모두 보존한다. 배열은 표본마다 새로 만든다.
 
 실패한 단계도 completed=false로 기록하며 기존 오류·이미 읽은 값은 유지한다. 접근 거부·PID 변경 등 무효 구간을 CPU 또는 RSS 0으로 대체하지 않는다.
 
@@ -44,8 +60,10 @@ ON 구간의 `sampling_schedule.wait_calls`에는 tick/target_time/start/end/req
 - wall 시간이 길고 CPU 시간이 작으면 해당 스레드가 계속 CPU에서 실행된 것은 아니라는 단서다. OS 경쟁·IO·GIL 등 개별 대기 원인은 이것만으로 확정하지 않는다.
 - 기록은 RSS나 누락 표본을 보정하는 데 쓰지 않는다. 타이머 자체 비용도 있어 ON과 OFF 결과가 같다고 가정하지 않는다.
 - 두 실행의 모델·소스·옵션·생성 길이·표본 지연을 함께 확인한다. 한 쌍의 순차 실행으로 모든 외부 부하·실행 순서 효과를 제거한 실험은 아니다.
-- 중복 부모 맵 조회 제거·검사 캐싱·검사 빈도 감소·모델 교체는 하지 않았다.
+- 부모 표 중복 조회 제거는 별도 개선에서 완료했다. 이번 v2는 검사 캐싱·검사 빈도 감소·모델 교체를 하지 않으며 기본 OFF에서 상세 시간/CPU 기록을 만들지 않는다.
 
 ## 자동 검증
+
+v2 테스트 12개를 추가해 전체 400개가 통과했다. 단계 구성/포함 경계/비중첩, 새 경로의 OFF CPU 호출 방지, 내부 8단계 실패와 전체 범위 검사 실패 보존, 표본별 기록 분리 및 wall/CPU 독립 기록을 확인한다. [개선 후 v1 ON 결과](MEMORY-PARENT-PROFILING-RESULT-20261008.md)에서는 스냅샷 경과의 90.33%가 membership이었다. 실제 v2 실행은 아직 하지 않았으므로 세부 단계 병목은 미확정이다. 위 상태 문단의 363개는 최초 v1 도입 시점의 기록이다.
 
 OFF CPU 호출 방지, phase 구성, RSS/PID 보호 유지, 실패 phase 보존, wall/CPU 독립 기록, 늦은 wakeup·응답 완료 대기 종료, 경계 표본 유지, 옵션 전달을 8개 추가 테스트로 확인했다. 실제 ON에서는 스냅샷 경과의 98.85%가 membership이었다. 다만 세부 네이티브 조회 비용과 CPU 경쟁의 개별 원인은 아직 미확정이다.
