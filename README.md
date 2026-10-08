@@ -148,7 +148,7 @@ RSS·RAM 및 ‘역할 및 메모리’, ‘맡는 일’ 질문의 부분 답�
 [수집 지연 진단](docs/MEMORY-SAMPLING-DIAGNOSIS-20261008.md): 가장 긴 7B 공백의 87.43%가 스냅샷 내부 경과 시간입니다. 반복 프로세스 조회는 확인했지만 개별 함수 비용과 CPU 경쟁 원인은 아직 분리 계측하지 않았습니다.
 [선택적 단계별 계측](docs/MEMORY-PROFILING.md)을 `--profile-timings`로 지원합니다. 기본 OFF이며 [실제 OFF/ON 분석](docs/MEMORY-PROFILING-RESULT-20261008.md)을 완료했습니다. ON에서 스냅샷 경과의 98.85%가 범위 검사에 집중됐지만, 특정 대기 원인과 순수 계측 비용은 아직 미확정입니다. 기존 안전 검사는 유지합니다.
 
-[범위 검사 중복 조회 개선](docs/MEMORY-PARENT-SNAPSHOT.md)은 Windows의 새 부모 PID 표를 매 검사 한 번만 읽어 세 범위에 공유합니다. 안전 검사 빈도는 유지하며, 실제 개선 후 성능은 7B 재측정 전까지 미확정입니다.
+[범위 검사 중복 조회 개선](docs/MEMORY-PARENT-SNAPSHOT.md)은 Windows의 새 부모 PID 표를 매 검사 한 번만 읽어 세 범위에 공유합니다. 안전 검사 빈도는 유지하며, [실제 7B 전후 결과](docs/MEMORY-PARENT-SNAPSHOT-RESULT-20261008.md)는 평균 간격 194.65→122.63ms·누락 목표 305→110회입니다. 모든 회차의 지연 경고는 남아 정밀 피크 보장은 보류합니다.
 
 [업무·메모리 요구 개선](docs/ROLE-MEMORY-GUARDS.md): 일반 역할 목록을 제한적으로 읽고 대상별 메모리 측정 행을 추적한다. 전체 RAM이나 모델 파일 크기로 메모리 사용량을 대신하지 않는다.
 
