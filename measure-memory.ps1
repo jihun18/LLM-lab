@@ -2,7 +2,8 @@ param(
     [ValidateSet('qwen3:1.7b', 'qwen3:4b-instruct', 'qwen2.5:7b-instruct')]
     [string]$Model = 'qwen3:1.7b',
     [switch]$Run,
-    [switch]$PrepareModel
+    [switch]$PrepareModel,
+    [switch]$ProfileTimings
 )
 $ErrorActionPreference = 'Stop'
 $taskPython = Join-Path $PSScriptRoot '.venv\Scripts\python.exe'
@@ -16,5 +17,6 @@ if ($Run -or $PrepareModel) {
 }
 if ($Run) { $taskArgs += '--run' }
 if ($PrepareModel) { $taskArgs += '--prepare-model' }
+if ($ProfileTimings) { $taskArgs += '--profile-timings' }
 & $taskPython @taskArgs
 exit $LASTEXITCODE

@@ -81,6 +81,7 @@ def runner_pid(service):
 def main():
     parser = argparse.ArgumentParser(description="로컬 PowerShell용 1.7B/4B/7B 분리 메모리 측정 실행기")
     parser.add_argument("--model", choices=SUPPORTED_MODELS, default=MODEL)
+    parser.add_argument("--profile-timings", action="store_true")
     parser.add_argument("--prepare-model", action="store_true")
     parser.add_argument("--run", action="store_true")
     parser.add_argument("--exclusive-confirmed", action="store_true")
@@ -104,6 +105,8 @@ def main():
         cmd = [sys.executable, str(ROOT / "memory_benchmark.py"), "--web-pid", str(web_pid),
                "--ollama-pid", str(service_pid), "--runner-pid", str(runner)]
         cmd += ["--model", args.model]
+        if args.profile_timings:
+            cmd += ["--profile-timings"]
         if args.run:
             cmd += ["--run", "--exclusive-confirmed"]
         return subprocess.run(cmd, cwd=ROOT, check=False).returncode

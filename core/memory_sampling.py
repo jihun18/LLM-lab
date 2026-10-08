@@ -31,8 +31,9 @@ def summarize(samples):
 
 class ProcessScopes:
     """Caller-confirmed roots. Pin identities; reject overlapping process trees."""
-    def __init__(self, web_pid, service_pid, runner_pid, process_factory=psutil.Process):
+    def __init__(self, web_pid, service_pid, runner_pid, process_factory=psutil.Process, profile_timings=False):
         self.factory = process_factory
+        self.profile_timings = profile_timings
         self.roots = {"web": web_pid, "service": service_pid, "runner": runner_pid}
         if len(set(self.roots.values())) != 3 or any(p <= 0 for p in self.roots.values()):
             raise MeasurementError("three distinct positive process IDs are required")
@@ -81,26 +82,54 @@ class ProcessScopes:
                 seen.add(p.pid)
         return groups
 
+    @staticmethod
+    def _measure(records, phase, operation):
+        if records is None:
+            return operation()
+        started = time.perf_counter()
+        cpu_start = time.thread_time()
+        completed = False
+        try:
+            result = operation()
+            completed = True
+            return result
+        finally:
+            cpu_end = time.thread_time()
+            ended = time.perf_counter()
+            records.append({"phase": phase, "start": started, "end": ended,
+                            "wall_seconds": ended-started,
+                            "thread_cpu_seconds": cpu_end-cpu_start, "completed": completed})
+
     def snapshot(self):
         started = time.perf_counter()
+        cpu_start = time.thread_time() if self.profile_timings else None
+        records = [] if self.profile_timings else None
         values = {name: {"rss_bytes": None} for name in self.roots}
         try:
-            groups = self.members()
+            groups = self._measure(records, "membership", self.members)
             for scope, procs in groups.items():
                 members = []
                 for proc in procs:
-                    created = proc.create_time()
-                    rss = proc.memory_info().rss
-                    if self.factory(proc.pid).create_time() != created:
+                    created = self._measure(records, "identity_before", proc.create_time)
+                    rss = self._measure(records, "rss_read", proc.memory_info).rss
+                    after = self._measure(records, "identity_after", lambda: self.factory(proc.pid).create_time())
+                    if after != created:
                         raise MeasurementError("process reused during sample")
                     members.append({"pid": proc.pid, "created": created, "rss_bytes": rss})
                 values[scope] = {"rss_bytes": sum(p["rss_bytes"] for p in members), "members": members}
             # Sequential process reads are not atomic. Keep acquisition width.
-            return {"time": started, "read_end": time.perf_counter(), "scopes": values,
-                    "excluded_service_console_hosts": self.excluded_service_console_hosts}
+            sample = {"time": started, "scopes": values,
+                      "excluded_service_console_hosts": self.excluded_service_console_hosts}
         except (psutil.Error, MeasurementError) as exc:
-            return {"time": started, "read_end": time.perf_counter(), "error": type(exc).__name__ + ": " + str(exc),
-                    "scopes": values}
+            sample = {"time": started, "error": type(exc).__name__ + ": " + str(exc), "scopes": values}
+        if records is not None:
+            cpu_end = time.thread_time()
+            sample["read_end"] = time.perf_counter()
+            sample["timing_profile"] = {"version": "collector-phase-v1", "phases": records,
+                                        "thread_cpu_seconds": cpu_end-cpu_start}
+        else:
+            sample["read_end"] = time.perf_counter()
+        return sample
 
 
 def scope_summaries(samples):

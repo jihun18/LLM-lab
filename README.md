@@ -136,7 +136,7 @@ python rag_evaluation.py --models qwen3:1.7b
 python rag_evaluation.py --models qwen3:1.7b --case-ids verification_states upload_flow
 ```
 
-현재 자동 테스트는 **355개**입니다. 벤치마크 결과는 로컬 `benchmark-results/`에 JSON·CSV·Markdown으로 생성되며 Git에는 포함되지 않습니다.
+현재 자동 테스트는 **363개**입니다. 벤치마크 결과는 로컬 `benchmark-results/`에 JSON·CSV·Markdown으로 생성되며 Git에는 포함되지 않습니다.
 
 역할 표현·대상 수와 독립적인 메모리 보호와 수치 검사 상태 구분은 [공통 메모리 보호](docs/COMMON-MEMORY-GUARD.md)를 참고하세요.
 역할의 표·일반 목록 대조와 메모리 도구명 열·KiB 처리는 [역할 충돌·메모리 표 형식 개선](docs/ROLE-CONFLICT-MEMORY-COLUMNS.md)을 참고하세요.
@@ -146,6 +146,7 @@ RSS·RAM 및 ‘역할 및 메모리’, ‘맡는 일’ 질문의 부분 답�
 해당 기준의 [분리 수집 도구 사용법과 제한](docs/MEMORY-COLLECTOR.md): 기본 사전 확인은 생성하지 않으며, 실제 측정은 명시적인 실행 옵션이 필요합니다. 절대 목표 시각 스케줄러 구현·가상 검증·실제 1.7B 재측정을 완료했습니다. 이번 실행에서 평균 표본 간격은 161.22ms에서 101.69ms로 줄었지만 목표 누락 4회가 있어 100ms 보장은 아닙니다.
 모델 선택은 `--model qwen3:4b-instruct` 또는 `--model qwen2.5:7b-instruct`로 지원합니다. [4B 기록](docs/MEMORY-MEASUREMENT-4B-20261008.md)과 [7B·세 모델 요약](docs/MEMORY-MEASUREMENT-7B-20261008.md)을 완료했습니다. 7B는 목표 누락 222회·최대 간격 약 1.07초가 있어 정밀 순간 피크 비교를 보류합니다. 다른 활성 모델을 자동 종료하거나 모델을 다운로드하지 않습니다.
 [수집 지연 진단](docs/MEMORY-SAMPLING-DIAGNOSIS-20261008.md): 가장 긴 7B 공백의 87.43%가 스냅샷 내부 경과 시간입니다. 반복 프로세스 조회는 확인했지만 개별 함수 비용과 CPU 경쟁 원인은 아직 분리 계측하지 않았습니다.
+[선택적 단계별 계측](docs/MEMORY-PROFILING.md)을 `--profile-timings`로 지원합니다. 기본 OFF이며 ON 실제 측정은 아직 대기 중입니다. 수집기 단계와 대기의 경과/스레드 CPU 시간을 기록하고 기존 안전 검사와 모델 상태 보호는 유지합니다.
 
 [업무·메모리 요구 개선](docs/ROLE-MEMORY-GUARDS.md): 일반 역할 목록을 제한적으로 읽고 대상별 메모리 측정 행을 추적한다. 전체 RAM이나 모델 파일 크기로 메모리 사용량을 대신하지 않는다.
 

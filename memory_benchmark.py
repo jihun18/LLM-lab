@@ -51,7 +51,8 @@ def get_json(client, path):
 
 
 def preflight(args, protocol, web_client, ollama_client):
-    roots = ProcessScopes(args.web_pid, args.ollama_pid, args.runner_pid)
+    roots = ProcessScopes(args.web_pid, args.ollama_pid, args.runner_pid,
+                          profile_timings=getattr(args, "profile_timings", False))
     web = psutil.Process(args.web_pid)
     cmd = web.cmdline()
     if "uvicorn" not in cmd or "app:app" not in cmd or Path(web.cwd()).resolve() != ROOT:
@@ -99,7 +100,21 @@ def periodic_samples(roots, done, interval, anchor, schedule, clock=time.perf_co
             tick = next_tick
             deadline = anchor + tick * interval
             schedule["skipped_ticks"] += skipped
-        if done.wait(max(0.0, deadline - clock())):
+        timeout = max(0.0, deadline - clock())
+        if schedule.get("profile_timings"):
+            wait_start = clock()
+            cpu_start = time.thread_time()
+            finished = done.wait(timeout)
+            cpu_end = time.thread_time()
+            wait_end = clock()
+            schedule["wait_calls"].append({"tick": tick, "target_time": deadline,
+                "start": wait_start, "end": wait_end, "requested_seconds": timeout,
+                "wall_seconds": wait_end-wait_start, "thread_cpu_seconds": cpu_end-cpu_start,
+                "completed_during_wait": finished,
+                "excess_wait_seconds": None if finished else max(0.0, wait_end-wait_start-timeout)})
+        else:
+            finished = done.wait(timeout)
+        if finished:
             break
         sample = roots.snapshot()
         sample["sample_role"] = "periodic"
@@ -118,6 +133,8 @@ def capture(roots, interval, action):
     samples[0]["sample_role"] = "start"
     schedule = {"scheduler": "absolute-deadline-v2", "target_interval_seconds": interval,
                 "anchor_time": samples[0]["time"], "skipped_ticks": 0}
+    if getattr(roots, "profile_timings", False):
+        schedule.update({"profile_timings": True, "wait_calls": []})
     done = threading.Event()
     outcome = {}
     def worker():
@@ -160,6 +177,7 @@ def main():
     parser.add_argument("--ollama-pid",type=int,required=True)
     parser.add_argument("--runner-pid",type=int,required=True)
     parser.add_argument("--model", choices=SUPPORTED_MODELS, default=SUPPORTED_MODELS[0])
+    parser.add_argument("--profile-timings", action="store_true", help="측정기 단계 경과/스레드 CPU 시간 계측")
     parser.add_argument("--run",action="store_true")
     parser.add_argument("--exclusive-confirmed",action="store_true",help="다른 요청·업로드·재색인이 없음을 사용자 확인")
     args = parser.parse_args()
@@ -169,6 +187,9 @@ def main():
     effective_bytes = json.dumps(protocol, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
     protocol_bytes = base_bytes if args.model == SUPPORTED_MODELS[0] else effective_bytes
     report = {"status":"preflight", "sampling_scheduler":"absolute-deadline-v2",
+              "profiling":{"enabled":args.profile_timings, "version":"collector-phase-v1",
+                           "cpu_metric":"time.thread_time; collector thread, not Ollama CPU",
+                           "warning":"profiling adds observer overhead; compare explicit on/off runs"},
               "protocol":protocol, "protocol_sha256":hashlib.sha256(protocol_bytes).hexdigest(),
               "base_protocol_sha256":hashlib.sha256(base_bytes).hexdigest(),
               "effective_protocol_sha256":hashlib.sha256(effective_bytes).hexdigest(),
