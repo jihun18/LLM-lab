@@ -64,6 +64,6 @@ ON 구간의 `sampling_schedule.wait_calls`에는 tick/target_time/start/end/req
 
 ## 자동 검증
 
-v2 테스트 12개를 추가해 전체 400개가 통과했다. 단계 구성/포함 경계/비중첩, 새 경로의 OFF CPU 호출 방지, 내부 8단계 실패와 전체 범위 검사 실패 보존, 표본별 기록 분리 및 wall/CPU 독립 기록을 확인한다. [개선 후 v1 ON 결과](MEMORY-PARENT-PROFILING-RESULT-20261008.md)에서는 스냅샷 경과의 90.33%가 membership이었다. 실제 v2 실행은 아직 하지 않았으므로 세부 단계 병목은 미확정이다. 위 상태 문단의 363개는 최초 v1 도입 시점의 기록이다.
+v2 테스트 12개를 추가해 전체 400개가 통과했다. 단계 구성/포함 경계/비중첩, 새 경로의 OFF CPU 호출 방지, 내부 8단계 실패와 전체 범위 검사 실패 보존, 표본별 기록 분리 및 wall/CPU 독립 기록을 확인한다. [개선 후 v1 ON 결과](MEMORY-PARENT-PROFILING-RESULT-20261008.md)에서는 스냅샷 경과의 90.33%가 membership이었다. 이후 [실제 v2 5회](MEMORY-MEMBERSHIP-PROFILING-RESULT-20261008.md)를 완료했으며 부모 표 취득이 membership 경과의 88.15%였다. 그 안의 네이티브 하위 호출 원인은 아직 미확정이다. 위 상태 문단의 363개는 최초 v1 도입 시점의 기록이다.
 
 OFF CPU 호출 방지, phase 구성, RSS/PID 보호 유지, 실패 phase 보존, wall/CPU 독립 기록, 늦은 wakeup·응답 완료 대기 종료, 경계 표본 유지, 옵션 전달을 8개 추가 테스트로 확인했다. 실제 ON에서는 스냅샷 경과의 98.85%가 membership이었다. 다만 세부 네이티브 조회 비용과 CPU 경쟁의 개별 원인은 아직 미확정이다.
