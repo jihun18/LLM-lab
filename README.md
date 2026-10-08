@@ -136,7 +136,7 @@ python rag_evaluation.py --models qwen3:1.7b
 python rag_evaluation.py --models qwen3:1.7b --case-ids verification_states upload_flow
 ```
 
-현재 자동 테스트는 **363개**입니다. 벤치마크 결과는 로컬 `benchmark-results/`에 JSON·CSV·Markdown으로 생성되며 Git에는 포함되지 않습니다.
+현재 자동 테스트는 **388개**입니다. 벤치마크 결과는 로컬 `benchmark-results/`에 JSON·CSV·Markdown으로 생성되며 Git에는 포함되지 않습니다.
 
 역할 표현·대상 수와 독립적인 메모리 보호와 수치 검사 상태 구분은 [공통 메모리 보호](docs/COMMON-MEMORY-GUARD.md)를 참고하세요.
 역할의 표·일반 목록 대조와 메모리 도구명 열·KiB 처리는 [역할 충돌·메모리 표 형식 개선](docs/ROLE-CONFLICT-MEMORY-COLUMNS.md)을 참고하세요.
@@ -147,6 +147,8 @@ RSS·RAM 및 ‘역할 및 메모리’, ‘맡는 일’ 질문의 부분 답�
 모델 선택은 `--model qwen3:4b-instruct` 또는 `--model qwen2.5:7b-instruct`로 지원합니다. [4B 기록](docs/MEMORY-MEASUREMENT-4B-20261008.md)과 [7B·세 모델 요약](docs/MEMORY-MEASUREMENT-7B-20261008.md)을 완료했습니다. 7B는 목표 누락 222회·최대 간격 약 1.07초가 있어 정밀 순간 피크 비교를 보류합니다. 다른 활성 모델을 자동 종료하거나 모델을 다운로드하지 않습니다.
 [수집 지연 진단](docs/MEMORY-SAMPLING-DIAGNOSIS-20261008.md): 가장 긴 7B 공백의 87.43%가 스냅샷 내부 경과 시간입니다. 반복 프로세스 조회는 확인했지만 개별 함수 비용과 CPU 경쟁 원인은 아직 분리 계측하지 않았습니다.
 [선택적 단계별 계측](docs/MEMORY-PROFILING.md)을 `--profile-timings`로 지원합니다. 기본 OFF이며 [실제 OFF/ON 분석](docs/MEMORY-PROFILING-RESULT-20261008.md)을 완료했습니다. ON에서 스냅샷 경과의 98.85%가 범위 검사에 집중됐지만, 특정 대기 원인과 순수 계측 비용은 아직 미확정입니다. 기존 안전 검사는 유지합니다.
+
+[범위 검사 중복 조회 개선](docs/MEMORY-PARENT-SNAPSHOT.md)은 Windows의 새 부모 PID 표를 매 검사 한 번만 읽어 세 범위에 공유합니다. 안전 검사 빈도는 유지하며, 실제 개선 후 성능은 7B 재측정 전까지 미확정입니다.
 
 [업무·메모리 요구 개선](docs/ROLE-MEMORY-GUARDS.md): 일반 역할 목록을 제한적으로 읽고 대상별 메모리 측정 행을 추적한다. 전체 RAM이나 모델 파일 크기로 메모리 사용량을 대신하지 않는다.
 

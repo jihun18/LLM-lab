@@ -4,9 +4,11 @@ import os
 import re
 
 
-def is_service_console_host(process, service_pid):
+def is_service_console_host(process, service_pid, *, parent_pid=None):
     """Only a direct Windows system console host; never a name-only exception."""
-    if os.name != "nt" or process.name().lower() != "conhost.exe" or process.ppid() != service_pid:
+    if os.name != "nt" or process.name().lower() != "conhost.exe":
+        return False
+    if (process.ppid() if parent_pid is None else parent_pid) != service_pid:
         return False
     system_root = os.environ.get("SystemRoot")
     if not system_root or not Path(system_root).is_absolute():
