@@ -1,6 +1,6 @@
 # 웹 서버·Ollama 분리 메모리 측정 기준
 
-상태: **1.7B 첫 측정·스케줄러 재측정 완료, 4B/7B 실제 측정 대기**. 수치는 [실측 기록](MEMORY-MEASUREMENT-20261008.md)을 참고한다.
+상태: **1.7B 첫 측정·재측정 및 4B 실측 완료, 7B 실제 측정 대기**. 수치는 [1.7B 기록](MEMORY-MEASUREMENT-20261008.md)과 [4B 기록](MEMORY-MEASUREMENT-4B-20261008.md)을 참고한다.
 
 기준 파일: `memory_measurement_protocol.json` (`memory-rss-warm-v1`). 원래 1.7B 기준 파일은 보존한다. 실행기에서 4B/7B를 선택하면 고정 요청 조건을 유지한 별도 실행용 복사본을 기록한다. 실제 적용 범위·모델별 명령·지문 형식과 남은 제한은 [수집 도구 문서](MEMORY-COLLECTOR.md)를 참고한다.
 
