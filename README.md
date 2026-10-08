@@ -136,13 +136,14 @@ python rag_evaluation.py --models qwen3:1.7b
 python rag_evaluation.py --models qwen3:1.7b --case-ids verification_states upload_flow
 ```
 
-현재 자동 테스트는 **249개**입니다. 벤치마크 결과는 로컬 `benchmark-results/`에 JSON·CSV·Markdown으로 생성되며 Git에는 포함되지 않습니다.
+현재 자동 테스트는 **275개**입니다. 벤치마크 결과는 로컬 `benchmark-results/`에 JSON·CSV·Markdown으로 생성되며 Git에는 포함되지 않습니다.
 
 역할 표현·대상 수와 독립적인 메모리 보호와 수치 검사 상태 구분은 [공통 메모리 보호](docs/COMMON-MEMORY-GUARD.md)를 참고하세요.
 역할의 표·일반 목록 대조와 메모리 도구명 열·KiB 처리는 [역할 충돌·메모리 표 형식 개선](docs/ROLE-CONFLICT-MEMORY-COLUMNS.md)을 참고하세요.
 RSS·RAM 및 ‘역할 및 메모리’, ‘맡는 일’ 질문의 부분 답변 연결과 최신 회귀 결과는 [추가 경계 평가](docs/ROLE-MEMORY-FOLLOWUP-20261007.md)를 참고하세요.
 최대·평균·최소 메모리의 요구·출처 구분과 일반 측정값 대체 금지는 [메모리 측정 조건 개선](docs/MEMORY-STATISTICS-20261007.md)을 참고하세요.
-웹 서버·Ollama 서비스·모델 실행 프로세스를 분리할 실측 기준은 [메모리 측정 프로토콜](docs/MEMORY-MEASUREMENT-PROTOCOL.md)을 참고하세요. 기준만 정의했으며 실제 측정값은 아직 없습니다.
+웹 서버·Ollama 서비스·모델 실행 프로세스를 분리할 실측 기준은 [메모리 측정 프로토콜](docs/MEMORY-MEASUREMENT-PROTOCOL.md)을 참고하세요. 실제 측정값은 아직 없습니다.
+해당 기준의 [분리 수집 도구 사용법과 제한](docs/MEMORY-COLLECTOR.md): 기본 사전 확인은 생성하지 않으며, 실제 측정은 명시적인 실행 옵션이 필요합니다. 도구 구현·가상 데이터 검증까지 완료했고 실측은 아직입니다.
 
 [업무·메모리 요구 개선](docs/ROLE-MEMORY-GUARDS.md): 일반 역할 목록을 제한적으로 읽고 대상별 메모리 측정 행을 추적한다. 전체 RAM이나 모델 파일 크기로 메모리 사용량을 대신하지 않는다.
 
