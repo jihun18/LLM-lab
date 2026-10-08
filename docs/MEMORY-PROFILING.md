@@ -2,7 +2,7 @@
 
 ## 상태
 
-[기존 원자료 진단](MEMORY-SAMPLING-DIAGNOSIS-20261008.md)에서 7B 최장 공백 대부분이 스냅샷 내부였음을 확인했다. 개별 단계와 실행/대기를 분리하기 위해 선택적 `--profile-timings`를 추가했다. 전체 자동 테스트 363개 및 PowerShell 문법 검사가 통과했다. 계측 ON 실제 실험은 아직 수행하지 않았다.
+[기존 원자료 진단](MEMORY-SAMPLING-DIAGNOSIS-20261008.md)에서 7B 최장 공백 대부분이 스냅샷 내부였음을 확인했다. 개별 단계와 실행/대기를 분리하기 위해 선택적 `--profile-timings`를 추가했다. 전체 자동 테스트 363개 및 PowerShell 문법 검사가 통과했다. 이후 같은 소스의 [실제 OFF/ON 실행](MEMORY-PROFILING-RESULT-20261008.md)을 각각 5회 완료했다.
 
 기본값은 OFF다. 동일 소스에서 OFF/ON을 별도 실행해야 계측 자체의 영향을 볼 수 있다. 기존 7B 원자료와 새 ON 기록만으로 계측 부하를 정확히 분리했다고 주장하지 않는다. 기존 원자료는 보존한다.
 
@@ -48,4 +48,4 @@ ON 구간의 `sampling_schedule.wait_calls`에는 tick/target_time/start/end/req
 
 ## 자동 검증
 
-OFF CPU 호출 방지, phase 구성, RSS/PID 보호 유지, 실패 phase 보존, wall/CPU 독립 기록, 늦은 wakeup·응답 완료 대기 종료, 경계 표본 유지, 옵션 전달을 8개 추가 테스트로 확인했다. 가상 시계·프로세스 기반이며 실제 7B CPU 원인은 아직 미확인이다.
+OFF CPU 호출 방지, phase 구성, RSS/PID 보호 유지, 실패 phase 보존, wall/CPU 독립 기록, 늦은 wakeup·응답 완료 대기 종료, 경계 표본 유지, 옵션 전달을 8개 추가 테스트로 확인했다. 실제 ON에서는 스냅샷 경과의 98.85%가 membership이었다. 다만 세부 네이티브 조회 비용과 CPU 경쟁의 개별 원인은 아직 미확정이다.
