@@ -3,6 +3,7 @@ import argparse
 from datetime import datetime, timezone, timedelta
 import hashlib
 import json
+import math
 from pathlib import Path
 import platform
 import subprocess
@@ -72,9 +73,38 @@ def preflight(args, protocol, web_client, ollama_client):
                    "code_sha256":{str(f.relative_to(ROOT)):hashlib.sha256(f.read_bytes()).hexdigest() for f in source_files}}
 
 
+def periodic_samples(roots, done, interval, anchor, schedule, clock=time.perf_counter):
+    """Absolute deadlines; skip expired slots instead of burst catch-up reads."""
+    tick = 1
+    while not done.is_set():
+        deadline = anchor + tick * interval
+        now = clock()
+        skipped = 0
+        if now > deadline:
+            next_tick = math.floor((now - anchor) / interval) + 1
+            skipped = next_tick - tick
+            tick = next_tick
+            deadline = anchor + tick * interval
+            schedule["skipped_ticks"] += skipped
+        if done.wait(max(0.0, deadline - clock())):
+            break
+        sample = roots.snapshot()
+        sample["sample_role"] = "periodic"
+        sample["schedule"] = {"tick": tick, "target_time": deadline,
+                              "lateness_seconds": max(0.0, sample["time"] - deadline),
+                              "skipped_ticks_before": skipped}
+        yield sample
+        tick += 1
+
+
 def capture(roots, interval, action):
     """Serial samples, endpoints included; network action runs in a separate thread."""
+    if not math.isfinite(interval) or interval <= 0:
+        raise ValueError("sampling interval must be finite and positive")
     samples = [roots.snapshot()]
+    samples[0]["sample_role"] = "start"
+    schedule = {"scheduler": "absolute-deadline-v2", "target_interval_seconds": interval,
+                "anchor_time": samples[0]["time"], "skipped_ticks": 0}
     done = threading.Event()
     outcome = {}
     def worker():
@@ -89,13 +119,14 @@ def capture(roots, interval, action):
     thread = threading.Thread(target=worker)
     thread.start()
     try:
-        while not done.wait(interval):
-            samples.append(roots.snapshot())
+        for sample in periodic_samples(roots, done, interval, samples[0]["time"], schedule):
+            samples.append(sample)
     finally:
         thread.join()
     samples.append(roots.snapshot())
+    samples[-1]["sample_role"] = "end"
     summaries = scope_summaries(samples)
-    return {"samples":samples,"summary":summaries,"outcome":outcome,
+    return {"samples":samples,"summary":summaries,"outcome":outcome,"sampling_schedule":schedule,
             "valid": not outcome.get("error") and all(s["valid"] for s in summaries.values()),
             "window_note":"pre-request sample through post-response sample; endpoint read latency included"}
 
@@ -120,7 +151,8 @@ def main():
     args = parser.parse_args()
     path = ROOT/"memory_measurement_protocol.json"
     protocol = json.loads(path.read_text(encoding="utf-8"))
-    report = {"status":"preflight", "protocol":protocol, "protocol_sha256":hashlib.sha256(path.read_bytes()).hexdigest(),
+    report = {"status":"preflight", "sampling_scheduler":"absolute-deadline-v2",
+              "protocol":protocol, "protocol_sha256":hashlib.sha256(path.read_bytes()).hexdigest(),
               "python":platform.python_version(),"os":platform.platform(),"psutil":psutil.__version__,
               "git_head":subprocess.check_output(["git","rev-parse","HEAD"],cwd=ROOT,text=True).strip(),
               "git_changes":subprocess.check_output(["git","status","--porcelain","--untracked-files=no"],cwd=ROOT,text=True),
