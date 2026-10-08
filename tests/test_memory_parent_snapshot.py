@@ -120,7 +120,8 @@ def test_native_table_includes_current_pid_and_parent():
 
 
 @pytest.mark.parametrize("kind", ["create", "first", "next", "close", "duplicate", "ok"])
-def test_native_api_failures_close_handle_and_never_return_partial_map(monkeypatch, kind):
+@pytest.mark.parametrize("profile", [False, True])
+def test_native_api_failures_close_handle_and_never_return_partial_map(monkeypatch, kind, profile):
     calls = []
     class Function:
         def __init__(self, fn): self.fn = fn
@@ -143,9 +144,21 @@ def test_native_api_failures_close_handle_and_never_return_partial_map(monkeypat
     api = SimpleNamespace(CreateToolhelp32Snapshot=Function(create), Process32FirstW=Function(first),
                           Process32NextW=Function(next_entry), CloseHandle=Function(close))
     monkeypatch.setattr(ctypes, "WinDLL", lambda *a, **kw: api, raising=False)
-    monkeypatch.setattr(ctypes, "get_last_error", lambda: 5 if kind in ("create", "first", "next", "close") else 18,
+    monkeypatch.setattr(ctypes, "get_last_error", lambda: 5 if kind in ("create", "first", "next") or
+                        (kind == "close" and calls) else 18,
                         raising=False)
-    if kind == "ok": assert windows_parent_map() == {10: 1}
+    records = [] if profile else None
+    if kind == "ok": assert windows_parent_map(records) == {10: 1}
     else:
-        with pytest.raises(MeasurementError): windows_parent_map()
+        with pytest.raises(MeasurementError): windows_parent_map(records)
     assert calls == ([] if kind == "create" else [123])
+    if profile:
+        names = [p['phase'] for p in records]
+        assert names == (['api_prepare', 'snapshot_create'] if kind == 'create' else
+                         ['api_prepare', 'snapshot_create', 'process_enumeration', 'snapshot_close'])
+        failed = [p['phase'] for p in records if not p['completed']]
+        expected = {'create': 'snapshot_create', 'first': 'process_enumeration',
+                    'next': 'process_enumeration', 'duplicate': 'process_enumeration',
+                    'close': 'snapshot_close'}
+        assert failed == ([] if kind == 'ok' else [expected[kind]])
+        assert all(a['end'] <= b['start'] for a, b in zip(records, records[1:]))

@@ -6,26 +6,26 @@ from contextlib import contextmanager
 import psutil
 from .ollama_process import is_service_console_host
 
-PROFILE_VERSION = "collector-phase-v2"
+PROFILE_VERSION = "collector-phase-v3"
 
 
 class MeasurementError(RuntimeError):
     pass
 
 
-def windows_parent_map():
+def windows_parent_map(records=None):
     """One fresh, read-only Toolhelp process snapshot; never cache membership.
 
     Microsoft: tlhelp32 PROCESSENTRY32W / CreateToolhelp32Snapshot.
     Only process IDs and parent IDs come from this table, not trusted paths/RSS.
     """
     try:
-        return _windows_parent_map()
+        return _windows_parent_map(records)
     except OSError as exc:
         raise MeasurementError(f"process snapshot API failed: {exc}") from exc
 
 
-def _windows_parent_map():
+def _prepare_windows_api():
     import ctypes
     from ctypes import wintypes
 
@@ -44,27 +44,36 @@ def _windows_parent_map():
         getattr(api, name).restype = wintypes.BOOL
     api.CloseHandle.argtypes = [wintypes.HANDLE]
     api.CloseHandle.restype = wintypes.BOOL
-    handle = api.CreateToolhelp32Snapshot(0x00000002, 0)
-    if handle == ctypes.c_void_p(-1).value:
-        raise MeasurementError(f"process snapshot failed: WinError {ctypes.get_last_error()}")
+    return ctypes, api, Entry
+
+
+def _windows_parent_map(records=None):
+    with ProcessScopes._phase(records, "api_prepare"):
+        ctypes, api, Entry = _prepare_windows_api()
+    with ProcessScopes._phase(records, "snapshot_create"):
+        handle = api.CreateToolhelp32Snapshot(0x00000002, 0)
+        if handle == ctypes.c_void_p(-1).value:
+            raise MeasurementError(f"process snapshot failed: WinError {ctypes.get_last_error()}")
     try:
-        entry = Entry()
-        entry.dwSize = ctypes.sizeof(entry)
-        if not api.Process32FirstW(handle, ctypes.byref(entry)):
-            raise MeasurementError(f"process enumeration failed: WinError {ctypes.get_last_error()}")
-        parents = {}
-        while True:
-            if entry.th32ProcessID in parents:
-                raise MeasurementError("duplicate PID in process snapshot")
-            parents[entry.th32ProcessID] = entry.th32ParentProcessID
-            if not api.Process32NextW(handle, ctypes.byref(entry)):
-                if ctypes.get_last_error() != 18:  # ERROR_NO_MORE_FILES only.
-                    raise MeasurementError(f"process enumeration failed: WinError {ctypes.get_last_error()}")
-                break
+        with ProcessScopes._phase(records, "process_enumeration"):
+            entry = Entry()
+            entry.dwSize = ctypes.sizeof(entry)
+            if not api.Process32FirstW(handle, ctypes.byref(entry)):
+                raise MeasurementError(f"process enumeration failed: WinError {ctypes.get_last_error()}")
+            parents = {}
+            while True:
+                if entry.th32ProcessID in parents:
+                    raise MeasurementError("duplicate PID in process snapshot")
+                parents[entry.th32ProcessID] = entry.th32ParentProcessID
+                if not api.Process32NextW(handle, ctypes.byref(entry)):
+                    if ctypes.get_last_error() != 18:  # ERROR_NO_MORE_FILES only.
+                        raise MeasurementError(f"process enumeration failed: WinError {ctypes.get_last_error()}")
+                    break
         return parents
     finally:
-        if not api.CloseHandle(handle):
-            raise MeasurementError(f"snapshot close failed: WinError {ctypes.get_last_error()}")
+        with ProcessScopes._phase(records, "snapshot_close"):
+            if not api.CloseHandle(handle):
+                raise MeasurementError(f"snapshot close failed: WinError {ctypes.get_last_error()}")
 
 
 def summarize(samples):
@@ -106,7 +115,7 @@ class ProcessScopes:
         except psutil.Error as exc:
             raise MeasurementError(type(exc).__name__) from exc
 
-    def members(self, records=None):
+    def members(self, records=None, parent_records=None):
         with self._phase(records, "root_identity"):
             roots = {name: self.factory(pid) for name,pid in self.roots.items()}
             for name, proc in roots.items():
@@ -115,7 +124,10 @@ class ProcessScopes:
         parents = None
         self.member_created = {}
         if self.parent_map_factory is not None:
-            parents = self._measure(records, "parent_snapshot", self.parent_map_factory)
+            operation = self.parent_map_factory
+            if parent_records is not None and operation is windows_parent_map:
+                operation = lambda: windows_parent_map(parent_records)
+            parents = self._measure(records, "parent_snapshot", operation)
             with self._phase(records, "parent_index"):
                 children = {}
                 for pid, parent in parents.items():
@@ -233,9 +245,10 @@ class ProcessScopes:
         cpu_start = time.thread_time() if self.profile_timings else None
         records = [] if self.profile_timings else None
         membership_records = [] if self.profile_timings else None
+        parent_records = [] if self.profile_timings else None
         values = {name: {"rss_bytes": None} for name in self.roots}
         try:
-            operation = (lambda: self.members(membership_records)) if self.profile_timings else self.members
+            operation = (lambda: self.members(membership_records, parent_records)) if self.profile_timings else self.members
             groups = self._measure(records, "membership", operation)
             for scope, procs in groups.items():
                 members = []
@@ -260,6 +273,7 @@ class ProcessScopes:
             sample["read_end"] = time.perf_counter()
             sample["timing_profile"] = {"version": PROFILE_VERSION, "phases": records,
                                         "membership_phases": membership_records,
+                                        "parent_snapshot_phases": parent_records,
                                         "thread_cpu_seconds": cpu_end-cpu_start}
         else:
             sample["read_end"] = time.perf_counter()

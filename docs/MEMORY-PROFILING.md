@@ -25,7 +25,7 @@ ON 표본의 `timing_profile`:
 
 | 단계/필드 | 의미 |
 |---|---|
-| `version` | `collector-phase-v2` (이전 원자료는 v1) |
+| `version` | `collector-phase-v3` (이전 원자료는 v1/v2) |
 | `thread_cpu_seconds` | 스냅샷 내부 수집기 스레드 CPU 시간 |
 | `phases[].membership` | 범위·자식·제외 호스트·중복 검사 전체 |
 | `phases[].identity_before` | RSS 직전 생성 시각 읽기 |
@@ -56,6 +56,14 @@ ON 구간의 `sampling_schedule.wait_calls`에는 tick/target_time/start/end/req
 
 ## 해석 한계
 
+v3는 별도 `parent_snapshot_phases` 배열에 `api_prepare`(ctypes 구조/DLL/함수 준비), `snapshot_create`(스냅샷 생성), `process_enumeration`(첫 조회부터 전체 목록 열거), `snapshot_close`(핸들 종료)를 기록한다. 부모 표를 더 조회하거나 항목마다 기록하지 않는다. 세부 배열은 `membership_phases[].parent_snapshot` 안에 포함되므로 두 배열과 전체 membership을 중복 합산하지 않는다. 실제 Windows 경로가 아닌 주입된 부모 표나 기존 자식 조회 경로에서는 배열이 비어 있다.
+
+ON에서만 세부 시계를 읽으며 OFF/직접 사전 검사에서는 상세 기록을 만들지 않는다. 준비/생성 실패 시 이후 단계는 생략하고, 열거 실패 시에도 종료를 시도해 그 결과를 기록한다. v3 실제 측정은 아직 하지 않았다.
+
+### 이번 지연 분석의 종료 기준
+
+다음 v3 ON 측정 1세트를 마지막 원인 분해 단계로 한다. 특정 작업이 주된 지연 위치이고 안전한 수정 근거가 있으면 그 수정 하나를 구현하고 기본 OFF로 1세트 검증한다. 원인이 여전히 불명확하거나 안전한 개선안이 없으면 추가 계측을 늘리지 않고 현재 한계와 결과를 정리해 지연 분석을 마친다. 이 기준은 100ms 완전 준수나 정밀 순간 피크 달성을 뜻하지 않는다. 이후 분석 확대는 사용자와 다시 결정한다.
+
 - CPU 시계는 `time.thread_time()`이다. 수집 스레드만 포함하며 HTTP 작업 스레드·웹 서버·Ollama CPU 사용률이 아니다.
 - wall 시간이 길고 CPU 시간이 작으면 해당 스레드가 계속 CPU에서 실행된 것은 아니라는 단서다. OS 경쟁·IO·GIL 등 개별 대기 원인은 이것만으로 확정하지 않는다.
 - 기록은 RSS나 누락 표본을 보정하는 데 쓰지 않는다. 타이머 자체 비용도 있어 ON과 OFF 결과가 같다고 가정하지 않는다.
@@ -63,6 +71,8 @@ ON 구간의 `sampling_schedule.wait_calls`에는 tick/target_time/start/end/req
 - 부모 표 중복 조회 제거는 별도 개선에서 완료했다. 이번 v2는 검사 캐싱·검사 빈도 감소·모델 교체를 하지 않으며 기본 OFF에서 상세 시간/CPU 기록을 만들지 않는다.
 
 ## 자동 검증
+
+v3는 네이티브 각 단계 실패·핸들 종료 보존·부모 단계 포함 경계·표본별 기록 분리·OFF CPU 호출 방지·주입 함수 호환 검증 10개를 추가해 전체 410개가 통과했다. v3 실제 성능은 아직 미확정이다.
 
 v2 테스트 12개를 추가해 전체 400개가 통과했다. 단계 구성/포함 경계/비중첩, 새 경로의 OFF CPU 호출 방지, 내부 8단계 실패와 전체 범위 검사 실패 보존, 표본별 기록 분리 및 wall/CPU 독립 기록을 확인한다. [개선 후 v1 ON 결과](MEMORY-PARENT-PROFILING-RESULT-20261008.md)에서는 스냅샷 경과의 90.33%가 membership이었다. 이후 [실제 v2 5회](MEMORY-MEMBERSHIP-PROFILING-RESULT-20261008.md)를 완료했으며 부모 표 취득이 membership 경과의 88.15%였다. 그 안의 네이티브 하위 호출 원인은 아직 미확정이다. 위 상태 문단의 363개는 최초 v1 도입 시점의 기록이다.
 

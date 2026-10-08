@@ -10,7 +10,7 @@ def test_nested_phases_are_separate_and_bounded_by_membership(monkeypatch, tmp_p
     scopes.profile_timings = True
     sample = scopes.snapshot()
     profile = sample['timing_profile']
-    assert profile['version'] == sampling.PROFILE_VERSION == 'collector-phase-v2'
+    assert profile['version'] == sampling.PROFILE_VERSION == 'collector-phase-v3'
     nested = profile['membership_phases']
     assert [p['phase'] for p in nested] == [
         'root_identity', 'parent_snapshot', 'parent_index', 'tree_build',
@@ -77,7 +77,7 @@ def test_failed_nested_stage_preserves_error_and_outer_failure(monkeypatch, tmp_
     assert not profile['phases'][0]['completed']
     # Each snapshot owns its records, even after a failed one.
     original = sampling.ProcessScopes.members
-    scopes.members = lambda records=None: original(scopes, records)
+    scopes.members = lambda records=None, parent_records=None: original(scopes, records, parent_records)
     again = scopes.snapshot()['timing_profile']['membership_phases']
     assert again is not profile['membership_phases']
 
