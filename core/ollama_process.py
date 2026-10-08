@@ -1,6 +1,17 @@
 """Strict executable/argument recognition; process ancestry is checked by scopes."""
 from pathlib import Path
+import os
 import re
+
+
+def is_service_console_host(process, service_pid):
+    """Only a direct Windows system console host; never a name-only exception."""
+    if os.name != "nt" or process.name().lower() != "conhost.exe" or process.ppid() != service_pid:
+        return False
+    system_root = os.environ.get("SystemRoot")
+    if not system_root or not Path(system_root).is_absolute():
+        return False
+    return Path(process.exe()).resolve() == (Path(system_root) / "System32" / "conhost.exe").resolve()
 
 
 def is_ollama_runner(service, runner):

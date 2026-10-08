@@ -2,7 +2,7 @@
 
 ## 상태
 
-`memory_benchmark.py`와 `core/memory_sampling.py` 구현 당시 전체 테스트 275개가 통과했다. 사용자 PowerShell 실행기 검증 26개와 Windows llama-server 식별 검증 15개를 추가한 현재 전체 테스트는 **316개 통과**이며 PowerShell 문법 검사도 통과했다. 실제 1.7B 요청 실측과 Wiki 반영은 아직 하지 않았다.
+`memory_benchmark.py`와 `core/memory_sampling.py` 구현 당시 전체 테스트 275개가 통과했다. 사용자 실행기 26개·Windows llama-server 식별 15개·서비스 콘솔 호스트 범위 14개 검증을 추가한 현재 전체 테스트는 **330개 통과**이며 PowerShell 문법 검사도 통과했다. 실제 1.7B 요청 실측과 Wiki 반영은 아직 하지 않았다.
 
 이 세션의 마지막 읽기 전용 확인에서 Ollama `/api/ps`는 HTTP 200이었고, 웹 서버 `/health`는 연결 시간 초과였다. 프로세스 열거만으로 현재 서비스 상태를 단정하지 않는다. 세 범위의 PID를 확인하기 전에는 실측하지 않는다.
 
@@ -46,7 +46,9 @@ python memory_benchmark.py --web-pid <웹서버PID> --ollama-pid <서비스PID> 
 ## 동작과 안전 제한
 
 - 기본은 읽기 전용 사전 확인. `--run`과 `--exclusive-confirmed`가 모두 있어야 예열 1회·유휴 5초·측정 5회를 실행한다. 회차 사이 대기는 3초다.
-- 실제 프로젝트 경로의 단일 FastAPI 서버와 Ollama `serve` 명령을 확인한다. runner는 동일 Ollama 실행 파일의 `runner` 명령 또는 확인된 Windows llama-server 형식을 인정한다. Ollama 서비스의 모든 자식이 확인된 runner 트리에 속해야 한다. 모호한 추가 자식이나 서로 겹치는 측정 범위는 거절한다.
+- 실제 프로젝트 경로의 단일 FastAPI 서버와 Ollama `serve` 명령을 확인한다. runner는 동일 Ollama 실행 파일의 `runner` 명령 또는 확인된 Windows llama-server 형식을 인정한다. 서비스 자식은 확인된 runner 트리와 아래에서 검증한 직속 시스템 콘솔 호스트만 허용한다. 모호한 추가 자식이나 서로 겹치는 측정 범위는 거절한다.
+- 사용자 프로세스 조회에서 서비스 직속 `conhost.exe`와 runner 직속 `conhost.exe`가 각각 확인됐다. 서비스 직속 호스트는 Windows 환경에서 `%SystemRoot%/System32/conhost.exe` 실제 실행 경로와 부모 PID를 확인해야만 제외한다. PID·생성 시각을 고정하고 모든 표본에 `excluded_service_console_hosts` 목록을 남긴다. 제외 목록 변경·PID 재사용·접근 거부·웹/runner 범위 중복은 중단 사유다. 이름만 같은 임의 프로세스는 허용하지 않는다.
+- 서비스 RSS는 원래 기준대로 본체만이다. runner RSS는 자식 콘솔 호스트를 포함한 트리 합계다. 따라서 세 범위 RSS를 더해 전체 Ollama 설치 구성의 RSS라고 주장하지 않는다. 서비스 콘솔 호스트 RSS 자체는 이번 프로토콜에서 측정하지 않는다.
 - 사용자가 제공한 Ollama 0.40.0 정보는 `ollama.exe serve`의 자식인 `lib/ollama/llama-server.exe`였다. 해당 설치 경로의 실제 실행 파일·명령행 실행 파일 경로, 절대 경로 `models/blobs/sha256-<64자리>` 모델, 유효 포트·127.0.0.1 host·offline/no-webui 옵션을 함께 검증한다. 임의 llama-server나 이름만 같은 프로세스는 인정하지 않는다. 모델 blob 해시와 `/api/ps` 모델 manifest digest가 같다고 주장하지 않는다.
 - 서비스는 본체만, 웹 서버와 runner는 각각 확인된 자식까지 측정한다. PID·생성 시각을 고정하고 변경·재사용을 기록하며 측정을 중단한다.
 - 활성 모델은 정확히 `qwen3:1.7b` 하나여야 한다. 자동 다운로드·적재·unload는 하지 않는다. 모델 digest·실제 웹 서버 옵션·소스 지문을 요청 전후에 확인한다.

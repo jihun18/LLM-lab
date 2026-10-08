@@ -2,6 +2,7 @@
 import math
 import time
 import psutil
+from .ollama_process import is_service_console_host
 
 
 class MeasurementError(RuntimeError):
@@ -48,12 +49,31 @@ class ProcessScopes:
                 raise MeasurementError("root process identity changed: " + name)
         web = [roots["web"], *roots["web"].children(recursive=True)]
         runner = [roots["runner"], *roots["runner"].children(recursive=True)]
-        service_children = {p.pid for p in roots["service"].children(recursive=True)}
+        descendants = roots["service"].children(recursive=True)
+        service_children = {p.pid for p in descendants}
         runner_ids = {p.pid for p in runner}
-        if roots["runner"].pid not in service_children or service_children != runner_ids:
-            raise MeasurementError("service descendants must be exactly the confirmed runner tree")
+        if not runner_ids.issubset(service_children):
+            raise MeasurementError("confirmed runner tree is missing from service descendants")
+        excluded = []
+        for proc in descendants:
+            if proc.pid in runner_ids:
+                continue
+            created = proc.create_time()
+            if not is_service_console_host(proc, roots["service"].pid):
+                raise MeasurementError(f"unconfirmed extra service descendant: PID {proc.pid}")
+            if self.factory(proc.pid).create_time() != created:
+                raise MeasurementError("console host PID changed during verification")
+            excluded.append({"pid": proc.pid, "created": created, "executable": proc.exe(),
+                             "reason": "verified direct system console host; service scope is root only"})
+        excluded_ids = {p["pid"]: p["created"] for p in excluded}
+        if "excluded_service_console_hosts" in self.identities:
+            if excluded_ids != self.identities["excluded_service_console_hosts"]:
+                raise MeasurementError("excluded service console host membership changed")
+        else:
+            self.identities["excluded_service_console_hosts"] = excluded_ids
+        self.excluded_service_console_hosts = excluded
         groups = {"web": web, "service": [roots["service"]], "runner": runner}
-        seen = set()
+        seen = set(excluded_ids)
         for procs in groups.values():
             for p in procs:
                 if p.pid in seen:
@@ -76,7 +96,8 @@ class ProcessScopes:
                     members.append({"pid": proc.pid, "created": created, "rss_bytes": rss})
                 values[scope] = {"rss_bytes": sum(p["rss_bytes"] for p in members), "members": members}
             # Sequential process reads are not atomic. Keep acquisition width.
-            return {"time": started, "read_end": time.perf_counter(), "scopes": values}
+            return {"time": started, "read_end": time.perf_counter(), "scopes": values,
+                    "excluded_service_console_hosts": self.excluded_service_console_hosts}
         except (psutil.Error, MeasurementError) as exc:
             return {"time": started, "read_end": time.perf_counter(), "error": type(exc).__name__ + ": " + str(exc),
                     "scopes": values}

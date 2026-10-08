@@ -33,6 +33,8 @@ class FakeProcess:
         self.pid=pid; self.created=created; self.rss=rss; self.descendants=[]; self.denied=False
     def create_time(self): return self.created
     def children(self,recursive): return self.descendants
+    def name(self): return "unknown.exe"
+    def ppid(self): return 0
     def memory_info(self):
         if self.denied: raise psutil.AccessDenied(self.pid)
         return SimpleNamespace(rss=self.rss)
