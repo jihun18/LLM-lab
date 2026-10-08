@@ -143,7 +143,7 @@ python rag_evaluation.py --models qwen3:1.7b --case-ids verification_states uplo
 RSS·RAM 및 ‘역할 및 메모리’, ‘맡는 일’ 질문의 부분 답변 연결과 최신 회귀 결과는 [추가 경계 평가](docs/ROLE-MEMORY-FOLLOWUP-20261007.md)를 참고하세요.
 최대·평균·최소 메모리의 요구·출처 구분과 일반 측정값 대체 금지는 [메모리 측정 조건 개선](docs/MEMORY-STATISTICS-20261007.md)을 참고하세요.
 웹 서버·Ollama 서비스·모델 실행 프로세스를 분리할 실측 기준은 [메모리 측정 프로토콜](docs/MEMORY-MEASUREMENT-PROTOCOL.md)을 참고하세요. [1.7B 첫 실측 기록](docs/MEMORY-MEASUREMENT-20261008.md)은 5회 완료 결과와 표본 지연 한계를 담고 있습니다.
-해당 기준의 [분리 수집 도구 사용법과 제한](docs/MEMORY-COLLECTOR.md): 기본 사전 확인은 생성하지 않으며, 실제 측정은 명시적인 실행 옵션이 필요합니다. 절대 목표 시각 스케줄러 구현·가상 검증은 완료했고, 새 구현으로 실제 재측정은 아직 하지 않았습니다.
+해당 기준의 [분리 수집 도구 사용법과 제한](docs/MEMORY-COLLECTOR.md): 기본 사전 확인은 생성하지 않으며, 실제 측정은 명시적인 실행 옵션이 필요합니다. 절대 목표 시각 스케줄러 구현·가상 검증·실제 1.7B 재측정을 완료했습니다. 이번 실행에서 평균 표본 간격은 161.22ms에서 101.69ms로 줄었지만 목표 누락 4회가 있어 100ms 보장은 아닙니다.
 
 [업무·메모리 요구 개선](docs/ROLE-MEMORY-GUARDS.md): 일반 역할 목록을 제한적으로 읽고 대상별 메모리 측정 행을 추적한다. 전체 RAM이나 모델 파일 크기로 메모리 사용량을 대신하지 않는다.
 
