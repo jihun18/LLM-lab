@@ -1,5 +1,6 @@
 """Default: read-only preflight. --run explicitly enables warm request measurement."""
 import argparse
+import copy
 from datetime import datetime, timezone, timedelta
 import hashlib
 import json
@@ -18,13 +19,25 @@ from core.ollama_process import is_ollama_runner
 ROOT = Path(__file__).resolve().parent
 WEB_URL = "http://127.0.0.1:8000"
 OLLAMA_URL = "http://127.0.0.1:11434"
+SUPPORTED_MODELS = ("qwen3:1.7b", "qwen3:4b-instruct", "qwen2.5:7b-instruct")
+
+
+def select_protocol(base, model):
+    if model not in SUPPORTED_MODELS:
+        raise MeasurementError("unsupported measurement model")
+    protocol = copy.deepcopy(base)
+    protocol["model"] = model
+    if model != SUPPORTED_MODELS[0]:
+        protocol["request"]["note"] = "Existing OllamaClient instruct path: no /no_think suffix; think=False."
+    validate_protocol(protocol)
+    return protocol
 
 
 def validate_protocol(p):
-    expected = {"protocol_id":"memory-rss-warm-v1", "model":"qwen3:1.7b", "sampling_interval_ms":100,
+    expected = {"protocol_id":"memory-rss-warm-v1", "sampling_interval_ms":100,
                 "measured_requests":5, "warmup_requests":1, "concurrent_requests":1,
                 "warm_idle_baseline_seconds":5, "minimum_idle_between_requests_seconds":3}
-    if any(p.get(k) != v for k,v in expected.items()):
+    if p.get("model") not in SUPPORTED_MODELS or any(p.get(k) != v for k,v in expected.items()):
         raise MeasurementError("unsupported protocol settings")
     r = p["request"]
     if (r["endpoint"],r["stream"],r["rag"],r["think"],r["num_ctx"],r["num_predict"],r["temperature"]) != ("/chat",False,False,False,2048,256,0.3):
@@ -146,13 +159,20 @@ def main():
     parser.add_argument("--web-pid",type=int,required=True)
     parser.add_argument("--ollama-pid",type=int,required=True)
     parser.add_argument("--runner-pid",type=int,required=True)
+    parser.add_argument("--model", choices=SUPPORTED_MODELS, default=SUPPORTED_MODELS[0])
     parser.add_argument("--run",action="store_true")
     parser.add_argument("--exclusive-confirmed",action="store_true",help="다른 요청·업로드·재색인이 없음을 사용자 확인")
     args = parser.parse_args()
     path = ROOT/"memory_measurement_protocol.json"
-    protocol = json.loads(path.read_text(encoding="utf-8"))
+    base_bytes = path.read_bytes()
+    protocol = select_protocol(json.loads(base_bytes), args.model)
+    effective_bytes = json.dumps(protocol, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    protocol_bytes = base_bytes if args.model == SUPPORTED_MODELS[0] else effective_bytes
     report = {"status":"preflight", "sampling_scheduler":"absolute-deadline-v2",
-              "protocol":protocol, "protocol_sha256":hashlib.sha256(path.read_bytes()).hexdigest(),
+              "protocol":protocol, "protocol_sha256":hashlib.sha256(protocol_bytes).hexdigest(),
+              "base_protocol_sha256":hashlib.sha256(base_bytes).hexdigest(),
+              "effective_protocol_sha256":hashlib.sha256(effective_bytes).hexdigest(),
+              "protocol_hash_format":"base-file-bytes" if args.model == SUPPORTED_MODELS[0] else "canonical-json",
               "python":platform.python_version(),"os":platform.platform(),"psutil":psutil.__version__,
               "git_head":subprocess.check_output(["git","rev-parse","HEAD"],cwd=ROOT,text=True).strip(),
               "git_changes":subprocess.check_output(["git","status","--porcelain","--untracked-files=no"],cwd=ROOT,text=True),

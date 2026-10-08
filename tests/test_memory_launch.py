@@ -54,7 +54,7 @@ def test_wrong_service_identity_rejected(wrong):
         identify_services([listener(), listener(20, 11434)], p.__getitem__)
 
 
-def model_client(active, installed=True, changed=False, done=True):
+def model_client(active, installed=True, changed=False, done=True, model=MODEL):
     calls = []
     ps_reads = 0
     loaded = False
@@ -64,15 +64,15 @@ def model_client(active, installed=True, changed=False, done=True):
         if request.url.path == "/api/ps":
             ps_reads += 1
             models = active
-            if loaded: models = [{"name": MODEL, "digest": "abc"}]
+            if loaded: models = [{"name": model, "digest": "abc"}]
             if changed and ps_reads == 2: models = [{"name": "other"}]
             return httpx.Response(200, json={"models": models})
         if request.url.path == "/api/tags":
-            return httpx.Response(200, json={"models": [{"name": MODEL}] if installed else []})
+            return httpx.Response(200, json={"models": [{"name": model}] if installed else []})
         if request.url.path == "/api/generate":
             import json
             data = json.loads(request.content)
-            assert data["model"] == MODEL and data["prompt"] == "" and data["keep_alive"] == "15m"
+            assert data["model"] == model and data["prompt"] == "" and data["keep_alive"] == "15m"
             assert data["options"]["num_ctx"] == 2048
             loaded = done
             return httpx.Response(200, json={"done": done})

@@ -1,8 +1,8 @@
 # 웹 서버·Ollama 분리 메모리 측정 기준
 
-상태: **기준 정의 완료, 실제 측정 미실행**. 운영 서버·모델 상태를 변경하지 않았다.
+상태: **1.7B 첫 측정·스케줄러 재측정 완료, 4B/7B 실제 측정 대기**. 수치는 [실측 기록](MEMORY-MEASUREMENT-20261008.md)을 참고한다.
 
-기준 파일: `memory_measurement_protocol.json` (`memory-rss-warm-v1`). 2026-10-08에 수집 도구 구현과 가상 표본 검증을 마쳤다. 실제 적용 범위와 남은 제한은 [수집 도구 문서](MEMORY-COLLECTOR.md)를 참고한다. 실제 측정은 아직 하지 않았다.
+기준 파일: `memory_measurement_protocol.json` (`memory-rss-warm-v1`). 원래 1.7B 기준 파일은 보존한다. 실행기에서 4B/7B를 선택하면 고정 요청 조건을 유지한 별도 실행용 복사본을 기록한다. 실제 적용 범위·모델별 명령·지문 형식과 남은 제한은 [수집 도구 문서](MEMORY-COLLECTOR.md)를 참고한다.
 
 ## 먼저 확인한 기존 기록의 한계
 
@@ -10,7 +10,7 @@
 
 ## 1차 측정 범위
 
-먼저 **FastAPI + qwen3:1.7b** 한 조합으로 수집이 가능한지 확인한다. 이후 같은 기준으로 Flask를 비교한다. 4B·7B, Streamlit, RAG 및 모델 최초 적재 측정은 후속 별도 실험이다.
+먼저 **FastAPI + qwen3:1.7b** 한 조합의 수집과 재측정을 확인했다. 다음은 같은 FastAPI 경로의 `qwen3:4b-instruct`와 `qwen2.5:7b-instruct` 별도 실험이다. Flask·Streamlit·RAG·모델 최초 적재 측정은 아직 이 도구의 지원 범위가 아니다.
 
 | 범위 | 포함 | 제외·주의 |
 |---|---|---|
