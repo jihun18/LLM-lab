@@ -136,7 +136,9 @@ python rag_evaluation.py --models qwen3:1.7b
 python rag_evaluation.py --models qwen3:1.7b --case-ids verification_states upload_flow
 ```
 
-현재 자동 테스트는 **435개**입니다. 벤치마크 결과는 로컬 `benchmark-results/`에 JSON·CSV·Markdown으로 생성되며 Git에는 포함되지 않습니다.
+현재 자동 테스트는 **445개**입니다. 벤치마크 결과는 로컬 `benchmark-results/`에 JSON·CSV·Markdown으로 생성되며 Git에는 포함되지 않습니다.
+
+[4B·7B 블라인드 선택 비교](docs/BLIND-MODEL-CHOICE-20261016.md)는 새 12문항의 같은 입력으로 모델 답변을 직접 생성하고 A/B 검토표와 모델·시간 공개 파일을 분리합니다. 사람 품질 판정 전에는 자동으로 모델을 추천하거나 삭제하지 않습니다.
 
 [새 질문 품질 평가 12문항](docs/FRESH-QUALITY-20261016.md)을 실행 전 고정하고 오프라인 첫 평가 및 보류 3문항의 실제 1.7B 생성을 완료했습니다. Wiki 검색과 통제 근거는 별도 집계하며, 자동 통과 6개·불일치 6개는 의미 정확도 점수가 아닙니다. 확인된 역할까지 누락하는 부분 답변 문제와 의역 검사 한계를 기록했고 운영 코드·Wiki는 변경하지 않았습니다.
 
