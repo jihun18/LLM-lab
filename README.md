@@ -136,7 +136,9 @@ python rag_evaluation.py --models qwen3:1.7b
 python rag_evaluation.py --models qwen3:1.7b --case-ids verification_states upload_flow
 ```
 
-현재 자동 테스트는 **410개**입니다. 벤치마크 결과는 로컬 `benchmark-results/`에 JSON·CSV·Markdown으로 생성되며 Git에는 포함되지 않습니다.
+현재 자동 테스트는 **418개**입니다. 벤치마크 결과는 로컬 `benchmark-results/`에 JSON·CSV·Markdown으로 생성되며 Git에는 포함되지 않습니다.
+
+[새 질문 품질 평가 12문항](docs/FRESH-QUALITY-20261016.md)을 실행 전 고정하고 오프라인 첫 평가 및 보류 3문항의 실제 1.7B 생성을 완료했습니다. Wiki 검색과 통제 근거는 별도 집계하며, 자동 통과 6개·불일치 6개는 의미 정확도 점수가 아닙니다. 확인된 역할까지 누락하는 부분 답변 문제와 의역 검사 한계를 기록했고 운영 코드·Wiki는 변경하지 않았습니다.
 
 역할 표현·대상 수와 독립적인 메모리 보호와 수치 검사 상태 구분은 [공통 메모리 보호](docs/COMMON-MEMORY-GUARD.md)를 참고하세요.
 역할의 표·일반 목록 대조와 메모리 도구명 열·KiB 처리는 [역할 충돌·메모리 표 형식 개선](docs/ROLE-CONFLICT-MEMORY-COLUMNS.md)을 참고하세요.
