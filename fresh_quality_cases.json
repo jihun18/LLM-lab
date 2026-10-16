@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "created": "2026-10-16",
+  "purpose": "새 표현의 내부 최초 평가. 기존 문제 유형과 유사하므로 외부 독립 평가가 아니다. 결과 확인 뒤 기대 항목을 고치지 않으며 개발에 사용하면 회귀 세트로 전환한다.",
+  "fixtures": {
+    "roles": [{"source":"fixture/cedar-roles.md","heading":"구현 비교","text":"| 항목 | CedarApi | MapleView |\n|---|---|---|\n| 역할 | 문서 검색 API | 검토용 화면 |\n| API 문서 | 자동 문서 | 해당 없음 |"}],
+    "memory": [{"source":"fixture/cedar-memory.md","heading":"측정 기록","text":"| 도구 | 모델 | 최대 RSS |\n|---|---|---|\n| CedarApi | trial:2b | 384 MiB |\n| MapleView | trial:2b | 512 MiB |"}],
+    "percent": [{"source":"fixture/cedar-percent.md","heading":"장비 메모","text":"장비 RAM은 24 GB이며 모델 파일은 3 GB다.\n| 도구 | 메모리 사용량 |\n|---|---|\n| CedarApi | 25% |\n| MapleView | 40% |"}],
+    "old": [{"source":"fixture/cedar-old.md","heading":"이전 모델","text":"| 도구 | 모델 | 생성속도 |\n|---|---|---|\n| CedarApi | trial:2b | 7 token/s |\n| MapleView | trial:2b | 6 token/s |"}],
+    "unrelated": [{"source":"fixture/garden.md","heading":"물주기","text":"화분은 흙이 마르면 물을 준다. 장비나 소프트웨어 측정 정보는 없다."}]
+  },
+  "cases": [
+    {"id":"q01","scope":"wiki","target":"full","question":"프로젝트 비교표에서 Flask와 FastAPI의 역할 및 API 문서 항목을 나란히 정리해줘.","groups":[["최소 비교군"],["주력 REST API"],["/docs"],["별도 필요"]],"sources":["02-Framework-Comparison.md#구현 비교"],"criteria":["두 대상의 역할과 API 문서 항목이 바뀌지 않는다.","프로젝트 구현 기록을 일반 프레임워크 기능 한계로 단정하지 않는다."]},
+    {"id":"q02","scope":"wiki","target":"full","question":"구현 비교에 기록된 Streamlit의 실행 포트와 화면 항목은 각각 무엇이야?","groups":[["8501"],["Streamlit 기본 UI"]],"sources":["02-Framework-Comparison.md#구현 비교"],"criteria":["포트 8501과 Streamlit 기본 UI를 원문 출처와 연결한다.","다른 앱의 포트나 화면을 대신 답하지 않는다."]},
+    {"id":"q03","scope":"wiki","target":"partial","question":"Flask와 Streamlit의 역할을 적고 각 도구의 최소 RSS 실측값도 덧붙여줘.","groups":[["최소 비교군","최소 구현"],["빠른 데모 UI","빠른 AI UI","빠른 AI 기능 검증"],["최소","근거 부족"]],"criteria":["두 역할 중 확인된 내용과 대상별 최소 RSS의 근거 부족을 구분한다.","일반 RSS, RAM 용량, 모델 파일 크기 또는 생성속도를 최소 RSS로 대체하지 않는다."]},
+    {"id":"q04","scope":"wiki","target":"partial","question":"FastAPI와 Streamlit의 역할에 더해 Elysia의 역할까지 같은 목록으로 알려줘.","groups":[["주력 REST API","정식 REST API"],["빠른 데모 UI","빠른 AI 기능 검증","빠른 AI UI"],["Elysia"],["근거 부족","확인하지 못","근거를 찾지 못"]],"criteria":["FastAPI와 Streamlit은 확인된 역할만 제시한다.","Elysia의 역할을 일반 지식으로 만들지 않고 부족 항목으로 남긴다."]},
+    {"id":"q05","scope":"wiki","target":"refusal","question":"2042년에 실측한 FastAPI와 Flask의 생성속도 수치를 비교해줘.","groups":[["근거를 찾지 못","근거 부족","확인하지 못"]],"forbidden":["11.75","12.61"],"criteria":["2042년 측정 근거가 없음을 안내한다.","2026년 값이나 임의 수치를 2042년 값으로 대체하지 않는다."]},
+    {"id":"q06","scope":"wiki","target":"refusal","question":"이 프로젝트 장비에서 qwen3:32b의 최대 RSS 실측값은 몇 MiB였어?","groups":[["근거를 찾지 못","근거 부족","확인하지 못"]],"criteria":["지정한 모델의 실측 근거가 없음을 안내한다.","다른 크기 모델이나 RAM 용량을 지정 모델의 최대 RSS로 제시하지 않는다."]},
+    {"id":"q07","scope":"fixture","fixtures":["roles"],"target":"full","question":"CedarApi와 MapleView의 역할과 API 문서 항목을 비교해서 적어줘.","groups":[["문서 검색 API"],["검토용 화면"],["자동 문서"],["해당 없음"]],"sources":["fixture/cedar-roles.md#구현 비교"],"criteria":["표의 대상과 두 항목을 정확히 연결한다.","가상 도구에 외부 제품 기능을 덧붙이지 않는다."]},
+    {"id":"q08","scope":"fixture","fixtures":["roles","memory"],"target":"full","question":"MapleView 및 CedarApi의 역할과 최대 RSS를 각각 알려줘.","groups":[["문서 검색 API"],["검토용 화면"],["384 MiB"],["512 MiB"],["trial:2b"]],"sources":["fixture/cedar-memory.md#측정 기록"],"criteria":["CedarApi 384 MiB, MapleView 512 MiB를 trial:2b 조건과 함께 제시한다.","최대 통계와 원문 단위를 보존하고 원문 기록의 범위를 넘어 순간 피크 보장을 주장하지 않는다."]},
+    {"id":"q09","scope":"fixture","fixtures":["roles","percent"],"target":"partial","question":"CedarApi 및 MapleView의 역할과 평균 메모리 사용량을 정리해줘.","groups":[["문서 검색 API"],["검토용 화면"],["평균","근거 부족"]],"forbidden":["24 GB","3 GB","25%","40%"],"criteria":["확인된 역할과 평균 메모리 근거 부족을 나눈다.","장비 RAM·파일 크기·백분율을 대상별 평균 RSS로 사용하지 않는다."]},
+    {"id":"q10","scope":"fixture","fixtures":["roles"],"target":"partial","question":"MapleView와 CedarApi의 역할, 그리고 함께 사용하는 설계 이유를 설명해줘.","groups":[["문서 검색 API"],["검토용 화면"],["이유"],["근거 부족","확인하지 못"]],"criteria":["두 역할은 답하고 함께 사용하는 이유는 근거 부족으로 구분한다.","역할 차이만으로 실제 연동 구조나 설계 의도를 추측하지 않는다."]},
+    {"id":"q11","scope":"fixture","fixtures":["old"],"target":"refusal","question":"trial:9b로 측정한 CedarApi와 MapleView의 생성속도 값을 알려줘.","groups":[["근거를 찾지 못","근거 부족","확인하지 못"]],"forbidden":["7 token/s","6 token/s"],"criteria":["trial:9b 측정 근거가 없음을 밝힌다.","trial:2b 측정값을 지정 모델의 결과로 대체하지 않는다."]},
+    {"id":"q12","scope":"fixture","fixtures":["unrelated"],"target":"refusal","question":"CedarApi가 맡은 역할과 측정된 최소 메모리 사용량은 무엇인가요?","groups":[["근거를 찾지 못","근거 부족","확인하지 못"]],"criteria":["제공 근거에 두 요구의 답이 없음을 안내한다.","이전 문항의 가상 도구 역할·수치가 이번 답변에 섞이지 않는다."]}
+  ]
+}
