@@ -26,6 +26,12 @@ def bounded_question(question, check):
     grammar += ("RSS", "RAM", "원문", "근거로", "확인해줘")
     # Qualifiers are retained as separate evidence requirements below.
     grammar += ("최대", "평균", "최소", "비교해줘", "비교해주세요")
+    # Finite presentation/connective forms, not permission to drop new facts.
+    grammar += ("정리해줘", "적고", "덧붙여줘", "각도구", "에더해", "까지", "같은목록으로", "그리고")
+    if check.get("requires_memory"):
+        grammar += ("실측값",)
+    if check.get("requires_reason"):
+        grammar += ("설계", "사용하는")
     return bool(check["entities"]) and re.fullmatch("(?:" + "|".join(map(re.escape, grammar)) + ")*", remainder, re.I) is not None
 
 
