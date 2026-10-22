@@ -59,6 +59,7 @@
     <div class="toolbar"><div><select id="model" aria-label="모델 모드"></select><div class="model-hint" id="modelHint"></div></div><input id="system" value="간결하고 정확한 한국어로 답하세요." aria-label="시스템 프롬프트"></div>
     <div class="ragbar"><label><input type="checkbox" id="ragMode" checked> Wiki 근거 사용</label><button type="button" class="smallbtn" id="reindex">Wiki 재색인</button><input type="file" id="documentFile" accept=".md,.txt,.pdf"><button type="button" class="smallbtn" id="uploadDocument">문서 추가</button><span id="knowledgeStatus">색인 확인 중</span></div>
     <div class="ragbar"><label for="searchMode">검색 방식</label><select id="searchMode"><option value="bm25">BM25 · 키워드</option><option value="semantic">의미 검색 · 실험</option><option value="hybrid">하이브리드 · 실험</option></select><span id="embeddingInfo">의미 검색은 첫 실행 시 문서를 준비합니다.</span></div>
+    <div class="ragbar"><label for="documentScope">대상 문서</label><select id="documentScope" style="max-width:100%"><option value="">전체 Wiki·업로드 문서</option></select><span id="scopeHint">문서를 선택하면 그 문서 안에서만 검색합니다.</span></div>
     <div id="messages"><div class="msg assistant">안녕하세요. Ollama에서 실행되는 로컬 AI입니다.</div></div>
     <form id="chatForm"><textarea id="prompt" placeholder="질문을 입력하세요" required></textarea><button id="send">전송</button></form>
     <footer><span id="framework">프레임워크 확인 중</span><span id="metrics">대기 중</span></footer>
@@ -155,9 +156,33 @@ const $ = id => document.getElementById(id);
 const modelProfiles = new Map();
 function message(role, text='') { const el=document.createElement('div'); el.className=`msg ${role}`; el.textContent=text; $('messages').append(el); $('messages').scrollTop=$('messages').scrollHeight; return el; }
 function updateModelHint(){const profile=modelProfiles.get($('model').value);$('modelHint').textContent=profile?.description||'설치된 Ollama 모델';}
+function updateScopeHint() {
+  $('documentScope').disabled = !$('ragMode').checked;
+  $('scopeHint').textContent = !$('ragMode').checked ? '일반 채팅에는 문서 선택이 적용되지 않습니다.' :
+    $('documentScope').value ? '선택한 문서 안에서만 검색 · 다른 문서로 자동 전환하지 않습니다.' : '전체 Wiki와 업로드 문서에서 검색합니다.';
+}
+async function loadDocuments(preferred = null) {
+  const selected = preferred ?? $('documentScope').value;
+  try {
+    const response = await fetch('/documents');
+    if (!response.ok) throw new Error('목록 요청 실패');
+    const data = await response.json();
+    if (!Array.isArray(data.documents)) throw new Error('문서 목록 형식 오류');
+    const options = [['', '전체 Wiki·업로드 문서'], ...data.documents.filter(d => typeof d.wiki_file === 'string').map(d => [d.wiki_file, d.wiki_file])];
+    if (selected && !options.some(([value]) => value === selected)) options.push([selected, '목록에 없는 선택 문서 · 다시 확인해주세요']);
+    $('documentScope').replaceChildren();
+    for (const [value, label] of options) { const option=document.createElement('option'); option.value=value; option.textContent=label; $('documentScope').append(option); }
+    $('documentScope').value = selected;
+    updateScopeHint();
+  } catch {
+    // Do not silently switch a requested document back to global search.
+    if (preferred) { const option=document.createElement('option'); option.value=preferred; option.textContent=preferred; $('documentScope').append(option); $('documentScope').value=preferred; }
+    $('scopeHint').textContent='문서 목록을 불러오지 못했습니다. 선택 문서를 확인하거나 페이지를 새로고침해주세요.';
+  }
+}
 async function initialize() {
   try {
-    const [health, models, knowledge] = await Promise.all([fetch('/health').then(r=>r.json()), fetch('/models').then(r=>r.json()), fetch('/knowledge/status').then(r=>r.json())]);
+    const [health, models, knowledge] = await Promise.all([fetch('/health').then(r=>r.json()), fetch('/models').then(r=>r.json()), fetch('/knowledge/status').then(r=>r.json()), loadDocuments()]);
     $('status').textContent='● Ollama 연결됨'; $('framework').textContent=health.framework;
     $('knowledgeStatus').textContent=`${knowledge.files_indexed}개 문서 · ${knowledge.chunks_indexed}개 조각`;
     $('embeddingInfo').textContent=`임베딩: ${knowledge.embedding_model} · 근거 하한 ${knowledge.semantic_threshold}`;
@@ -170,29 +195,48 @@ $('chatForm').addEventListener('submit', async event => {
   event.preventDefault(); const prompt=$('prompt').value.trim(); if(!prompt)return;
   message('user',prompt); $('prompt').value=''; $('send').disabled=true; $('metrics').textContent='생성 중…'; const out=message('assistant');
   try {
-    const useRag=$('ragMode').checked, endpoint=useRag?'/rag/chat/stream':'/chat/stream'; let sources=[], verification=null, answer='', completed=false;
-    const response=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt,model:$('model').value,system:$('system').value,top_k:3,search_mode:$('searchMode').value})});
+    const useRag=$('ragMode').checked, endpoint=useRag?'/rag/chat/stream':'/chat/stream'; let sources=[], verification=null, answer='', completed=false, returnedScope=null;
+    const selectedSource=useRag?$('documentScope').value:'';
+    const response=await fetch(endpoint,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt,model:$('model').value,system:$('system').value,top_k:3,search_mode:$('searchMode').value,...(selectedSource?{source:selectedSource}:{})})});
     if(!response.ok) throw new Error(await response.text());
     const reader=response.body.getReader(), decoder=new TextDecoder(); let buffer='';
     function accept(data) {
       if(data.error) throw new Error(data.error);
       if(data.verification) verification=data.verification;
+      if(data.document_scope) returnedScope=data.document_scope;
       if(Array.isArray(data.sources)) sources=data.sources;
-      if(typeof data.content==='string') { answer+=data.content; out.textContent=answer; }
+      if(typeof data.content==='string') { answer+=data.content; out.textContent=selectedSource?'선택한 문서의 응답 범위를 확인하는 중…':answer; }
       if(data.done) { completed=true; $('metrics').textContent=verification?.method==='deterministic_table_extraction'?'표에서 즉시 조회':`${data.elapsed_seconds}초 · ${data.tokens_per_second??'-'} token/s`; }
       $('messages').scrollTop=$('messages').scrollHeight;
     }
     while(true){ const {value,done}=await reader.read(); buffer+=decoder.decode(value||new Uint8Array(),{stream:!done}); const lines=buffer.split('\n'); buffer=lines.pop(); for(const line of lines){if(line.trim())accept(JSON.parse(line));} if(done){if(buffer.trim())accept(JSON.parse(buffer));break;} }
     if(!completed) throw new Error('응답이 완료되기 전에 연결이 종료됐습니다.');
+    if(selectedSource && (returnedScope?.source!==selectedSource || sources.some(s=>s.source!==selectedSource))) throw new Error('서버에서 대상 문서 적용을 확인하지 못했습니다. 서버를 재시작하고 다시 질문해주세요.');
     if(useRag) AnswerUI.render(out,answer,verification,sources);
+    if(useRag) { const note=document.createElement('p'); note.className='answer-scope'; note.textContent='검색 범위: '+(selectedSource||'전체 Wiki·업로드 문서'); out.append(note); }
     $('messages').scrollTop=useRag?Math.max(0,out.offsetTop-12):$('messages').scrollHeight;
   } catch(error) { out.textContent=`오류: ${error.message}`; $('metrics').textContent='요청 실패'; }
   finally { $('send').disabled=false; $('prompt').focus(); }
 });
 $('prompt').addEventListener('keydown', e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();$('chatForm').requestSubmit();}});
 $('model').addEventListener('change',updateModelHint);
+$('documentScope').addEventListener('change',updateScopeHint);
+$('ragMode').addEventListener('change',updateScopeHint);
 $('reindex').addEventListener('click',async()=>{ $('knowledgeStatus').textContent='재색인 중…'; try{const result=await fetch('/knowledge/reindex',{method:'POST'}).then(r=>r.json());$('knowledgeStatus').textContent=`${result.files_indexed}개 문서 · ${result.chunks_indexed}개 조각`;}catch{$('knowledgeStatus').textContent='재색인 실패';} });
-$('uploadDocument').addEventListener('click',async()=>{const file=$('documentFile').files[0];if(!file){message('assistant','추가할 .md, .txt 또는 .pdf 파일을 선택하세요.');return;}if(file.size>5*1024*1024){message('assistant','파일은 최대 5MB까지 추가할 수 있습니다.');return;}$('knowledgeStatus').textContent='문서 처리 중…';$('uploadDocument').disabled=true;try{const response=await fetch('/documents/upload',{method:'POST',headers:{'Content-Type':'application/octet-stream','X-Filename':encodeURIComponent(file.name)},body:file});const result=await response.json();if(!response.ok)throw new Error(result.detail||'업로드 실패');$('knowledgeStatus').textContent=`${result.knowledge.files_indexed}개 문서 · ${result.knowledge.chunks_indexed}개 조각`;message('assistant',`📄 문서 추가 완료: ${result.document.wiki_file}`);$('documentFile').value='';}catch(error){message('assistant',`문서 추가 오류: ${error.message}`);$('knowledgeStatus').textContent='문서 추가 실패';}finally{$('uploadDocument').disabled=false;}});
+$('uploadDocument').addEventListener('click',async()=>{
+  const file=$('documentFile').files[0];
+  if(!file){message('assistant','추가할 .md, .txt 또는 .pdf 파일을 선택하세요.');return;}
+  if(file.size>5*1024*1024){message('assistant','파일은 최대 5MB까지 추가할 수 있습니다.');return;}
+  $('knowledgeStatus').textContent='문서 처리 중…';$('uploadDocument').disabled=true;
+  try {
+    const response=await fetch('/documents/upload',{method:'POST',headers:{'Content-Type':'application/octet-stream','X-Filename':encodeURIComponent(file.name)},body:file});
+    const result=await response.json();if(!response.ok)throw new Error(result.detail||'업로드 실패');
+    $('knowledgeStatus').textContent=`${result.knowledge.files_indexed}개 문서 · ${result.knowledge.chunks_indexed}개 조각`;
+    message('assistant',`📄 문서 추가 완료: ${result.document.wiki_file}`);
+    await loadDocuments(result.document.wiki_file); $('documentFile').value='';
+  } catch(error) {message('assistant',`문서 추가 오류: ${error.message}`);$('knowledgeStatus').textContent='문서 추가 실패';}
+  finally {$('uploadDocument').disabled=false;}
+});
 initialize();
 </script>
 </body>

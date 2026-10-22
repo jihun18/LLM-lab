@@ -13,7 +13,23 @@ def compact(text):
 
 
 def asks_submissions(question):
-    return any(term in compact(question) for term in ("제출서류", "제출자료", "구비서류", "제출해야할서류"))
+    q = compact(question).lower()
+    if any(term in q for term in ("제출서류", "제출자료", "구비서류", "제출해야할서류")):
+        return True
+    # Explicit application/submission context plus a resource is required.
+    # '이것만 하면 돼?' does not authorize guessing conversational context.
+    if not any(term in q for term in ("접수", "제출", "신청")) or not any(
+        term in q for term in ("pdf", "파일", "기획안", "제안서", "신청서", "서류", "자료")
+    ):
+        return False
+    if any(term in q for term in ("말고", "묻는게아니", "질문이아니")):
+        return False
+    sufficiency = bool(re.search(r"만(?:내면|내도|제출하면|제출해도|보내면|보내도|올리면|올려도|으로)", q)) and any(
+        term in q for term in ("끝", "충분", "완료", "돼", "되나", "될까", "되나요"))
+    additional = any(term in q for term in (
+        "다른자료", "추가자료", "추가서류", "다른파일", "동의절차", "동의도",
+        "준비해야하는파일", "준비할서류"))
+    return sufficiency or additional
 
 
 def _heading(line):
@@ -76,7 +92,7 @@ def submission_evidence(question, results):
             seen.add(key)
     if not items:
         missing.append("요청한 제출 서류·자료 안내 (검색된 근거의 지원 형식에서 확인하지 못함)")
-    if any(term in compact(question) for term in ("마감", "기한", "기간", "날짜", "일정", "시간")):
+    if any(term in compact(question) for term in ("마감", "기한", "기간", "날짜", "일정", "시간", "언제", "몇시")):
         schedules = []
         for source in results:
             for line in source.text.splitlines():

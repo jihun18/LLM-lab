@@ -13,6 +13,7 @@ class ChatRequest(BaseModel):
 class RagRequest(ChatRequest):
     top_k: int = Field(default=3, ge=1, le=5)
     search_mode: Literal["bm25", "semantic", "hybrid"] = "bm25"
+    source: str | None = Field(default=None, min_length=1, max_length=240)
 
 
 class SummarizeRequest(BaseModel):

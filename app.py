@@ -12,6 +12,7 @@ from core.model_modes import build_model_modes
 from core.ollama_client import OllamaClient, OllamaError
 from core.rag_service import rag_response, rag_stream_events
 from core.schemas import ChatRequest, RagRequest, SummarizeRequest
+from core.document_scope import DocumentScopeError, validate_document_scope
 
 
 app = FastAPI(
@@ -111,6 +112,7 @@ async def document_upload(request: Request) -> dict:
 @app.post("/rag/chat")
 def rag_chat(request: RagRequest) -> dict:
     try:
+        validate_document_scope(knowledge, request.source)
         return rag_response(
             request.prompt,
             request.model,
@@ -119,13 +121,20 @@ def rag_chat(request: RagRequest) -> dict:
             knowledge,
             client,
             request.search_mode,
+            request.source,
         )
+    except DocumentScopeError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     except OllamaError as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
 
 
 @app.post("/rag/chat/stream")
 def rag_chat_stream(request: RagRequest) -> StreamingResponse:
+    try:
+        validate_document_scope(knowledge, request.source)
+    except DocumentScopeError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     def generate():
         try:
             for event in rag_stream_events(
@@ -136,9 +145,10 @@ def rag_chat_stream(request: RagRequest) -> StreamingResponse:
                 knowledge,
                 client,
                 request.search_mode,
+                request.source,
             ):
                 yield json.dumps(event, ensure_ascii=False) + "\n"
-        except OllamaError as exc:
+        except (OllamaError, DocumentScopeError) as exc:
             yield json.dumps({"error": str(exc)}, ensure_ascii=False) + "\n"
 
     return StreamingResponse(generate(), media_type="application/x-ndjson")

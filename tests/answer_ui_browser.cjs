@@ -14,6 +14,8 @@ const assert = require('node:assert/strict');
   const errors = [];
   page.on('pageerror', e => errors.push(String(e)));
   let scenario = 'partial';
+  let uploaded = false;
+  const chosen = 'Uploads/check.md';
   const sources = [{source: '02-Framework-Comparison.md', heading: '구현 비교'}];
   const missing = ['Django의 역할 (검색 근거 부족)'];
   const noEvidenceMissing = ['요청 조건에서의 성능 우열·재현성 판단 근거 (단순 속도표로 대체 불가)'];
@@ -26,7 +28,13 @@ const assert = require('node:assert/strict');
     if (u.pathname === '/health') data = {framework: 'FastAPI', status: 'ok'};
     else if (u.pathname === '/models') data = {models: [{name: 'qwen3:1.7b'}], default: 'qwen3:1.7b'};
     else if (u.pathname === '/knowledge/status') data = {files_indexed: 15, chunks_indexed: 60, embedding_model: '화면 검증용', semantic_threshold: 0.44};
+    else if (u.pathname === '/documents') data = {documents: [{wiki_file: chosen}, ...(uploaded ? [{wiki_file: 'Uploads/new-upload.md'}] : [])]};
+    else if (u.pathname === '/documents/upload') { uploaded = true; data = {document: {wiki_file: 'Uploads/new-upload.md'}, knowledge: {files_indexed: 16, chunks_indexed: 61}}; }
     else if (u.pathname === '/rag/chat/stream' || u.pathname === '/chat/stream') {
+      const scoped = ['scoped', 'scopeIgnored', 'scopeWrong'].includes(scenario);
+      const request = route.request().postDataJSON();
+      if (scoped) assert.equal(request.source, chosen);
+      if (scenario === 'plain') assert.equal(request.source, undefined);
       const partial = scenario === 'partial' || scenario === 'mobile' || scenario === 'insufficient';
       const missingItems = scenario === 'insufficient' ? noEvidenceMissing : missing;
       const verification = partial ? {method: 'deterministic_requirement_copy', passed: null, missing_items: missingItems,
@@ -34,8 +42,10 @@ const assert = require('node:assert/strict');
         scenario === 'blocked' ? {passed: false, method: 'no_evidence', issues: null} :
         {passed: null, method: 'source_attached_semantic_review_needed'};
       const answer = scenario === 'insufficient' ? noEvidence : partial ? raw : scenario === 'blocked' ? 'Wiki에서 근거를 찾지 못했습니다.' : '출처가 있어도 의미는 검토해야 합니다.';
-      const events = [{sources: ['blocked', 'insufficient'].includes(scenario) ? [] : sources}, {content: answer, done: false, verification}];
-      if (scenario !== 'incomplete') events.push({done: true, verification, elapsed_seconds: .01, tokens_per_second: null});
+      const scope = scoped && scenario !== 'scopeIgnored' ? {document_scope: {source: chosen, mode: 'selected_document'}} : {};
+      const selectedSources = scoped ? [{source: scenario === 'scopeWrong' ? 'Uploads/other.md' : chosen, heading: 'PDF 2페이지'}] : sources;
+      const events = [{sources: ['blocked', 'insufficient'].includes(scenario) ? [] : selectedSources, ...scope}, {content: answer, done: false, verification}];
+      if (scenario !== 'incomplete') events.push({done: true, verification, elapsed_seconds: .01, tokens_per_second: null, ...scope});
       // Deliberately no trailing newline: final buffered event must be consumed.
       return route.fulfill({contentType: 'application/x-ndjson', body: events.map(JSON.stringify).join('\n')});
     } else return route.fulfill({status: 404, body: ''});
@@ -45,7 +55,8 @@ const assert = require('node:assert/strict');
     scenario = which;
     await page.goto('http://privai.test/');
     await page.waitForFunction(() => document.querySelector('#model').options.length > 0);
-    if (which === 'plain') await page.locator('#ragMode').uncheck();
+    if (['scoped', 'scopeIgnored', 'scopeWrong', 'plain'].includes(which)) await page.locator('#documentScope').selectOption(chosen);
+    if (which === 'plain') { await page.locator('#ragMode').uncheck(); assert.ok(await page.locator('#documentScope').isDisabled()); }
     await page.locator('#prompt').fill(which === 'insufficient' ? '모델을 USB로 옮긴 뒤에도 이전 속도 측정 결과를 그대로 적용해도 돼?' : 'FastAPI와 Flask의 역할과 Django의 역할도 알려줘.');
     await page.locator('#send').click();
     await page.waitForFunction(() => !document.querySelector('#send').disabled);
@@ -83,6 +94,21 @@ const assert = require('node:assert/strict');
     card = await submit('plain');
     assert.equal(await card.locator('.answer-status').count(), 0);
     assert.equal(await card.textContent(), '출처가 있어도 의미는 검토해야 합니다.');
+    card = await submit('scoped');
+    assert.match(await card.innerText(), /검색 범위: Uploads\/check.md/);
+    assert.match(await page.locator('#scopeHint').innerText(), /자동 전환하지 않습니다/);
+    await page.screenshot({path: path.join(output, 'document-scope.png'), fullPage: true});
+    for (const which of ['scopeIgnored', 'scopeWrong']) {
+      card = await submit(which);
+      assert.match(await card.innerText(), /대상 문서 적용을 확인하지 못했습니다/);
+      assert.equal(await card.locator('.answer-status').count(), 0);
+    }
+    await page.goto('http://privai.test/');
+    await page.waitForFunction(() => document.querySelector('#model').options.length > 0);
+    await page.locator('#documentFile').setInputFiles({name: 'new.txt', mimeType: 'text/plain', buffer: Buffer.from('공개 테스트 문서')});
+    await page.locator('#uploadDocument').click();
+    await page.waitForFunction(() => document.querySelector('#documentScope').value === 'Uploads/new-upload.md');
+    assert.match(await page.locator('#scopeHint').innerText(), /선택한 문서 안에서만/);
     await page.setViewportSize({width: 390, height: 844});
     card = await submit('mobile');
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth));
@@ -91,6 +117,6 @@ const assert = require('node:assert/strict');
     assert.ok(badge.y >= box.y && badge.y + badge.height <= box.y + box.height);
     await page.screenshot({path: path.join(output, 'partial-mobile.png'), fullPage: true});
     assert.deepEqual(errors, []);
-    console.log('Browser checks passed: partial/insufficient/source/raw/review/blocked/incomplete/EOF/mobile; screenshots: ' + output);
+    console.log('Browser checks passed: partial/insufficient/source/raw/review/blocked/incomplete/EOF/document-scope/old-server/auto-select/mobile; screenshots: ' + output);
   } finally { await browser.close(); }
 })().catch(error => {console.error(error); process.exitCode = 1;});

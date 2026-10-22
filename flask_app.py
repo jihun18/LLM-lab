@@ -10,6 +10,7 @@ from core.search import SearchKnowledge, SEARCH_MODES
 from core.model_modes import build_model_modes
 from core.ollama_client import OllamaClient, OllamaError
 from core.rag_service import rag_response, rag_stream_events
+from core.document_scope import DocumentScopeError, validate_document_scope
 
 
 app = Flask(__name__)
@@ -101,6 +102,11 @@ def validated_rag_data():
         data["top_k"] = min(max(int(raw_top_k), 1), 5)
     except (TypeError, ValueError):
         return None, (jsonify(error="top_k는 1부터 5까지의 정수여야 합니다."), 400)
+    data["source"] = (request.get_json(silent=True) or {}).get("source")
+    try:
+        validate_document_scope(knowledge, data["source"])
+    except DocumentScopeError as exc:
+        return None, (jsonify(error=str(exc)), 400)
     return data, None
 
 
@@ -138,6 +144,8 @@ def rag_chat():
         return error
     try:
         return jsonify(rag_response(**data, knowledge=knowledge, client=client))
+    except DocumentScopeError as exc:
+        return jsonify(error=str(exc)), 400
     except OllamaError as exc:
         return jsonify(error=str(exc)), 502
 
@@ -152,7 +160,7 @@ def rag_chat_stream():
         try:
             for event in rag_stream_events(**data, knowledge=knowledge, client=client):
                 yield json.dumps(event, ensure_ascii=False) + "\n"
-        except OllamaError as exc:
+        except (OllamaError, DocumentScopeError) as exc:
             yield json.dumps({"error": str(exc)}, ensure_ascii=False) + "\n"
 
     return Response(generate(), mimetype="application/x-ndjson")

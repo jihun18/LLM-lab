@@ -306,7 +306,13 @@ def rag_response(
     knowledge: KnowledgeBase,
     client: OllamaClient,
     search_mode: str = "bm25",
+    source: str | None = None,
 ) -> dict:
+    if source is not None:
+        from .document_scope import scoped_knowledge
+        scoped = scoped_knowledge(knowledge, source)
+        response = rag_response(prompt, model, system, top_k, scoped, client, search_mode)
+        return {**response, "document_scope": {"source": source, "mode": "selected_document"}}
     started = time.perf_counter()
     results = (knowledge.search(prompt, top_k) if search_mode == "bm25"
                else knowledge.search(prompt, top_k, mode=search_mode))
@@ -398,13 +404,16 @@ def rag_stream_events(
     knowledge: KnowledgeBase,
     client: OllamaClient,
     search_mode: str = "bm25",
+    source: str | None = None,
 ) -> Iterator[dict]:
-    response = rag_response(prompt, model, system, top_k, knowledge, client, search_mode)
-    yield {"sources": response["sources"]}
+    response = rag_response(prompt, model, system, top_k, knowledge, client, search_mode, source)
+    scope = {"document_scope": response["document_scope"]} if "document_scope" in response else {}
+    yield {"sources": response["sources"], **scope}
     yield {
         "done": False,
         "content": response["answer"],
         "verification": response.get("verification"),
+        **scope,
     }
     yield {
         "done": True,
@@ -414,4 +423,5 @@ def rag_stream_events(
         "tokens_per_second": response["tokens_per_second"],
         "eval_count": response["eval_count"],
         "verification": response.get("verification"),
+        **scope,
     }

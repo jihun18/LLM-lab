@@ -7,6 +7,7 @@ import pytest
 from core.knowledge_base import SearchResult
 from core.pdf_facts import pdf_source_answer
 from core.rag_service import rag_response, rag_stream_events
+from core.submission_facts import asks_submissions
 
 
 TEXT = """1   추진 일정
@@ -121,3 +122,69 @@ def test_actual_api_submission_stream_preserves_missing_and_sources(framework, m
     assert events[0]["sources"] and "사용 명세" in events[1]["content"]
     assert events[-1]["done"] and events[-1]["eval_count"] == 0
     assert events[-1]["verification"]["passed"] is None and events[-1]["verification"]["missing_items"]
+
+
+@pytest.mark.parametrize("question", [
+    "기획안 PDF만 내면 접수가 끝나? 다른 자료나 동의 절차도 필요해?",
+    "신청서만 제출하면 접수가 완료되나요?",
+    "제안서만 보내면 신청이 끝나?",
+    "접수할 때 PDF만으로 충분해?",
+    "접수에 파일만 내도 돼?",
+    "처음 접수할 때 준비해야 하는 파일과 추가 자료를 빠짐없이 알려줘.",
+    "접수는 언제까지고, 준비할 서류는 어떤 형식으로 몇 쪽까지 작성해야 해?",
+])
+def test_submission_paraphrases_copy_additional_resources_without_model(question):
+    assert asks_submissions(question)
+    knowledge = SimpleNamespace(search=lambda *a, **kw: [source()])
+    response = rag_response(question, "test", None, 3, knowledge, NoModel())
+    assert "사용 명세" in response["answer"] and "연구윤리" in response["answer"]
+    assert "PDF" in response["answer"] and "7페이지" in response["answer"]
+    assert response["answer_status"] == "partial" and response["eval_count"] == 0
+    assert "PDF만 내면 접수가 끝" not in response["answer"]
+    if "언제" in question:
+        assert "4. 28. 15시" in response["answer"]
+
+
+@pytest.mark.parametrize("question", [
+    "이것만 하면 돼?",
+    "PDF 파일만 올리면 모델 학습이 끝나?",
+    "접수 사이트의 PDF 업로드 기능을 구현해줘.",
+    "신청서만 내면 끝나는지 말고 서버 설치법을 알려줘.",
+    "기획안만 내면 접수가 끝나는지 묻는 게 아니야.",
+    "행사 참가 동의만 하면 경품을 받아?",
+    "동의서를 제출하면 개인정보가 안전해?",
+])
+def test_new_intent_does_not_capture_unrelated_or_rejected_submission_questions(question):
+    assert asks_submissions(question) is False
+
+
+def test_source_saying_no_extra_consent_is_not_inverted():
+    text = "1 신청 방법\n❍ 제출 서류: 신청서만 제출합니다.\n별도 동의 절차는 필요하지 않습니다."
+    answer, _, check = pdf_source_answer("신청서만 내면 접수가 끝나? 동의도 필요해?", [source(text)])
+    assert "별도 동의 절차는 필요하지 않습니다" in answer
+    assert "필수 동의" not in answer and "추가 서류가 필요합니다" not in answer
+    assert check["passed"] is None
+
+
+@pytest.mark.parametrize("framework", ["fastapi", "flask"])
+def test_scoped_api_sufficiency_question_cannot_use_old_model_summary(framework, monkeypatch, tmp_path):
+    from fastapi.testclient import TestClient
+    from core.knowledge_base import KnowledgeBase
+    import app
+    import flask_app
+    (tmp_path / "Uploads").mkdir()
+    (tmp_path / "Uploads" / "research.md").write_text("# 연구 공모\n\n## PDF 2페이지\n\n" + TEXT, encoding="utf-8")
+    (tmp_path / "upload-guide.md").write_text("# 접수 업로드\n\nPDF 파일 추가 버튼을 누른다.", encoding="utf-8")
+    knowledge = KnowledgeBase(tmp_path)
+    knowledge.reindex()
+    module = app if framework == "fastapi" else flask_app
+    monkeypatch.setattr(module, "knowledge", knowledge)
+    monkeypatch.setattr(module, "client", NoModel())
+    client = TestClient(module.app) if framework == "fastapi" else module.app.test_client()
+    response = client.post("/rag/chat/stream", json={"prompt": "기획안 PDF만 내면 접수가 끝나? 다른 자료나 동의 절차도 필요해?", "source": "Uploads/research.md"})
+    assert response.status_code == 200
+    raw = response.text if framework == "fastapi" else response.get_data(as_text=True)
+    events = [json.loads(line) for line in raw.splitlines()]
+    assert "사용 명세" in events[1]["content"] and "연구윤리" in events[1]["content"]
+    assert "파일 추가 버튼" not in events[1]["content"]
+    assert events[-1]["eval_count"] == 0 and events[-1]["document_scope"]["source"] == "Uploads/research.md"
