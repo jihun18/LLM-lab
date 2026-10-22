@@ -282,6 +282,9 @@ def grounded_response(
     blocked = verification.get("passed") is False
     if blocked and citation_verification is None:
         answer = "답변이 Wiki 근거 검증을 통과하지 못해 표시하지 않았습니다. 질문을 항목별로 나누거나 근거 문서를 보완해주세요."
+        if "한도" in prompt and verification.get("method") == "structured_claim_verification":
+            answer = "요청한 한도 값을 검색된 근거로 확인하지 못했습니다. 임의의 숫자는 제시하지 않습니다."
+            verification["scope"] = "생성된 수치를 검색 근거로 확인하지 못함. 전체 문서에 해당 정보가 없다는 증명은 아닙니다."
     if not blocked and verification.get("passed") is True and verification.get("method") in {"structured_claim_verification", "metric_unit_validation"}:
         verification = {"passed": True, "method": "numeric_subset_semantic_review_needed",
                         "display_label": "수치 근거만 확인 · 질문 전체 의미는 사람 검토 필요",
@@ -310,6 +313,7 @@ def rag_response(
     search_seconds = time.perf_counter() - started
     from .requirement_retrieval import supplement_role_evidence, requirement_source_answer
     from .project_facts import supplement_project_evidence, project_source_answer
+    from .pdf_facts import pdf_source_answer
     from .evidence_scope import unsupported_query_anchors
     trace = []
     # Frozen-context/model comparison calls grounded_response directly, so
@@ -321,6 +325,8 @@ def rag_response(
             results, project_trace = supplement_project_evidence(prompt, results, knowledge, search_mode)
             trace.extend(project_trace)
             copied = project_source_answer(prompt, results)
+        if not copied:
+            copied = pdf_source_answer(prompt, results)
         if copied:
             answer, used, verification = copied
             elapsed = round(time.perf_counter() - started, 3)
@@ -363,7 +369,21 @@ def rag_response(
             },
         }
 
-    response = grounded_response(prompt, model, system, results, client)
+    # Page-local PDF questions otherwise send cover/adjacent pages as competing
+    # evidence to a small context model. Keep this policy production-only:
+    # direct grounded_response calls used in frozen-context experiments stay
+    # untouched. This is a single-page answer, never proof of full-document
+    # coverage, and does not merge arbitrary facts across pages/documents.
+    pdf_primary = (bool(results) and results[0].source.startswith("Uploads/")
+                   and all(r.source == results[0].source and re.fullmatch(r"PDF \d+페이지", r.heading)
+                           for r in results))
+    response = grounded_response(prompt, model, system, results, client,
+                                 context_mode="primary" if pdf_primary else "full")
+    if pdf_primary and "context" in response:
+        focused = response["context"]["sent_count"] == 1
+        response["context"]["selection_policy"] = "uploaded_pdf_primary_page" if focused else "uploaded_pdf_anchor_preserving"
+        response["context"]["scope"] = ("검색 상위 한 페이지 중심의 답변이며 전체 PDF의 요구 충족은 보장하지 않습니다." if focused else
+                                            "모델·연도 조건의 근거 보존을 위해 여러 페이지를 전달했습니다. 전체 PDF의 요구 충족은 보장하지 않습니다.")
     return {**response, "sources": response.get("sources", sources), "search_mode": search_mode,
             "retrieval_followups": trace,
             "search_seconds": round(search_seconds, 3),

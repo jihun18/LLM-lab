@@ -131,6 +131,13 @@ class KnowledgeBase:
         priority_match = RAG_PRIORITY_PATTERN.search(text)
         priority = float(priority_match.group(1)) if priority_match else 1.0
         relative = path.relative_to(self.root).as_posix()
+        if relative.startswith("Uploads/") and re.search(
+            r"(?m)^> 원본 파일: `[^`]+`  \r?\n> 가져온 시각: [^\n]+\n> 원본 형식: ", text
+        ) and "\n## 문서 내용\n" in text:
+            # Generated upload provenance remains on disk, but is not a fact
+            # chunk. Otherwise a filename-only hit can outrank the actual page.
+            title = text.splitlines()[0]
+            text = title + "\n" + text.split("\n## 문서 내용\n", 1)[1]
         chunks: list[Chunk] = []
         heading = path.stem
         document_title = path.stem
@@ -274,8 +281,12 @@ class KnowledgeBase:
 def build_grounded_prompt(question: str, results: list[SearchResult]) -> str:
     contexts = []
     for index, result in enumerate(results, start=1):
+        body = result.text
+        if result.source.startswith("Uploads/") and re.fullmatch(r"PDF \d+페이지", result.heading):
+            # Retain physical rows while avoiding layout-padding token waste.
+            body = re.sub(r"[ \t]{2,}", " ", body)
         contexts.append(
-            f"[근거 {index}: {result.source}#{result.heading}]\n{result.text}"
+            f"[근거 {index}: {result.source}#{result.heading}]\n{body}"
         )
     context_text = "\n\n".join(contexts)
     allowed_sources = "\n".join(
@@ -294,6 +305,10 @@ def build_grounded_prompt(question: str, results: list[SearchResult]) -> str:
         "절차 답변은 번호 목록을 먼저 사용하고, 중복 처리처럼 근거에 명시된 핵심 조건은 목록 뒤에 한 문장으로 적으세요. "
         "수치 비교가 이유라면 비교 대상의 수치와 단위를 함께 적으세요. "
         "해시 이름, 모델명, 수치처럼 고유한 표기는 근거의 문자열을 그대로 복사하세요. "
+        "파일명·출처 제목·PDF 쪽수는 질문의 답이나 수치로 적지 마세요. "
+        "표는 같은 행의 대상·수량·금액을 연결하고, 점·팀 등 단위를 임의로 바꾸지 마세요. "
+        "정확한 장소·시간이 추후 공개이면 확인된 날짜·지역은 답하고 미공개 항목만 구분하세요. "
+        "문서에 호출 한도 등 요청 값이 없으면 해당 값은 검색 근거에서 확인할 수 없다고 밝히세요. "
         "추측하거나 새로운 사실을 만들지 말고 출처는 하나만 사용하세요. "
         "출처 파일명이나 절 제목을 직접 쓰지 말고, 실제 사용한 근거 번호를 선택하세요. "
         "마지막 줄에는 아래 허용 출처 중 실제로 사용한 항목을 정확히 표시하세요.\n"

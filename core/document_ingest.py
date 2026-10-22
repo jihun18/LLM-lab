@@ -60,7 +60,9 @@ class DocumentIngestor:
                 raise DocumentIngestError("PDF는 최대 100페이지만 처리할 수 있습니다.")
             pages = []
             for number, page in enumerate(reader.pages, start=1):
-                page_text = (page.extract_text() or "").strip()
+                # Preserve physical rows/column spacing instead of joining an
+                # entire schedule or award table into one long sentence.
+                page_text = (page.extract_text(extraction_mode="layout") or "").strip()
                 if page_text:
                     pages.append(f"## PDF {number}페이지\n\n{page_text}")
         except DocumentIngestError:

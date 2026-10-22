@@ -11,15 +11,17 @@ from .text_contracts import verify_text_contracts
 NUMBER_PATTERN = re.compile(r"-?\d+(?:\.\d+)?")
 TABLE_SEPARATOR = re.compile(r"^:?-{3,}:?$")
 STRUCTURED_PATTERNS = [
-    re.compile(r"\d{4}\s*년\s*\d{1,2}\s*월\s*\d{1,2}\s*일"),
+    re.compile(r"(?<!\d)(?:19|20)\d{2}\s*(?:년|[./-])\s*\d{1,2}\s*(?:월|[./-])\s*\d{1,2}\s*(?:일|\.)?"),
+    re.compile(r"(?<!\d)\d{1,2}\s*월\s*\d{1,2}\s*일"),
     re.compile(
-        r"(?:월|연|일|주)?\s*\d+(?:[.,]\d+)?\s*"
-        r"(?:조원|억원|만원|천원|원|%|퍼센트|GB|MB|TB|GHz|MHz|token/s|초|분|시간|페이지|개)",
+        r"(?<![\d.,])(?:월|연|일|주)?\s*\d+(?:,\d{3})*(?:\.\d+)?\s*"
+        r"(?:(?:조|억|만|천)\s*원|원|%|퍼센트|GB|MB|TB|GHz|MHz|token/s|초|분|시간|시|페이지|개\s*팀|팀|명|인|세|점|회|부|개)",
         re.IGNORECASE,
     ),
 ]
-DATE_CLAIM_PATTERN = re.compile(r"\d{4}\s*년\s*\d{1,2}\s*월\s*\d{1,2}\s*일")
-AMOUNT_CLAIM_PATTERN = re.compile(r"(?:조원|억원|만원|천원|원)", re.IGNORECASE)
+DATE_CLAIM_PATTERN = STRUCTURED_PATTERNS[0]
+PARTIAL_DATE_PATTERN = STRUCTURED_PATTERNS[1]
+AMOUNT_CLAIM_PATTERN = re.compile(r"(?:조\s*원|억\s*원|만\s*원|천\s*원|원)", re.IGNORECASE)
 
 
 @dataclass(frozen=True)
@@ -93,7 +95,9 @@ def requested_unit(question: str) -> str | None:
     normalized = question.lower().replace(" ", "")
     if "token/s" in normalized or "토큰/초" in normalized or "속도" in normalized:
         return "token/s"
-    if "시간" in normalized or "몇초" in normalized:
+    calendar = any(word in normalized for word in ("날짜", "일정", "마감", "시작시간", "행사", "시각"))
+    duration = any(word in normalized for word in ("응답시간", "처리시간", "소요시간", "평균시간", "몇초", "걸리"))
+    if duration or ("시간" in normalized and not calendar):
         return "seconds"
     return None
 
@@ -209,7 +213,7 @@ def verify_metric_answer(
     return {
         "passed": not issues,
         "method": "metric_unit_validation",
-        "display_label": "수치 근거 검증 통과",
+        "display_label": "수치 근거 검증 통과" if not issues else "수치 근거 검증 실패",
         "requested_unit": unit,
         "facts": [fact.to_dict() for fact in facts],
         "issues": issues,
@@ -217,14 +221,28 @@ def verify_metric_answer(
 
 
 def _normalized_claim(text: str) -> str:
-    return re.sub(r"[\s,]", "", text).lower()
+    text = text.strip()
+    if DATE_CLAIM_PATTERN.fullmatch(text):
+        year, month, day = map(int, re.findall(r"\d+", text))
+        return f"{year:04}-{month:02}-{day:02}"
+    if PARTIAL_DATE_PATTERN.fullmatch(text):
+        month, day = map(int, re.findall(r"\d+", text))
+        return f"--{month:02}-{day:02}"
+    return re.sub(r"[\s,]", "", text).lower().replace("개팀", "팀")
 
 
 def extract_structured_claims(text: str) -> list[str]:
+    # Citation identity is checked separately. A page number in a filename or
+    # source heading is provenance, not a factual claim made by the answer.
+    text = re.sub(r"\[출처:[^\]]*\]", "", text)
     claims: list[str] = []
     seen: set[str] = set()
+    spans = []
     for pattern in STRUCTURED_PATTERNS:
         for match in pattern.finditer(text):
+            if any(start <= match.start() and match.end() <= end for start, end in spans):
+                continue
+            spans.append(match.span())
             claim = match.group().strip()
             normalized = _normalized_claim(claim)
             if normalized not in seen:
@@ -236,13 +254,49 @@ def extract_structured_claims(text: str) -> list[str]:
 def structured_claim_types(claims: list[str]) -> list[str]:
     types: set[str] = set()
     for claim in claims:
-        if DATE_CLAIM_PATTERN.fullmatch(claim):
+        if DATE_CLAIM_PATTERN.fullmatch(claim) or PARTIAL_DATE_PATTERN.fullmatch(claim):
             types.add("date")
         elif AMOUNT_CLAIM_PATTERN.search(claim):
             types.add("amount")
         else:
             types.add("metric")
     return sorted(types)
+
+
+def row_claim_issues(answer: str, results: list[SearchResult]) -> list[str]:
+    """Check only explicit named rows with both a count and money amount.
+
+    A number existing elsewhere in the page does not prove a row association.
+    This is not a general Korean entailment checker; unknown layouts stay out.
+    """
+    from .table_comparison import _tables
+    candidates = {}
+    for result in results:
+        rows = [(row[0], " ".join(row[1:])) for _, table in _tables(result.text) for row in table]
+        for line in result.text.splitlines():
+            match = re.fullmatch(r"\s*([가-힣A-Za-z][가-힣A-Za-z0-9_-]{1,30})\s{2,}(.+)", line)
+            if match:
+                rows.append(match.groups())
+        for label, rest in rows:
+            claims = extract_structured_claims(rest)
+            amounts = [c for c in claims if AMOUNT_CLAIM_PATTERN.search(c)]
+            counts = [c for c in claims if re.search(r"(?:팀|명|인|점|회|개)$", c)]
+            if amounts and counts and not re.search(r"\d|[|\n]", label):
+                candidates.setdefault(label.strip(), []).append({_normalized_claim(c) for c in claims})
+    if not candidates:
+        return []
+    labels = "|".join(re.escape(label) for label in sorted(candidates, key=len, reverse=True))
+    pattern = re.compile(r"(?<![가-힣A-Za-z0-9_])(?:" + labels + r")(?=은|는|이|가|의|[:：\s,]|\d|$)")
+    issues = []
+    for clause in re.split(r"[\n;。]", re.sub(r"\[출처:[^\]]*\]", "", answer)):
+        matches = list(pattern.finditer(clause))
+        for i, match in enumerate(matches):
+            label = match.group()
+            segment = clause[match.end():matches[i + 1].start() if i + 1 < len(matches) else len(clause)]
+            for claim in extract_structured_claims(segment):
+                if any(_normalized_claim(claim) not in row for row in candidates[label]):
+                    issues.append(f"대상별 행 연결 불일치: {label} — {claim}")
+    return issues
 
 
 def verify_structured_claims(answer: str, results: list[SearchResult]) -> dict:
@@ -258,18 +312,27 @@ def verify_structured_claims(answer: str, results: list[SearchResult]) -> dict:
             "issues": ["자동 대조할 금액·날짜·단위 수치가 없습니다."],
         }
 
-    evidence = _normalized_claim("\n".join(result.text for result in results))
+    evidence_text = "\n".join(result.text for result in results)
+    evidence = {_normalized_claim(claim) for claim in extract_structured_claims(evidence_text)}
+    # One explicit date range may omit the year on its second endpoint.
+    # Inherit it only across a same-line range, never from a document title.
+    for match in re.finditer(
+        r"((?:19|20)\d{2})\s*\.\s*\d{1,2}\s*\.\s*\d{1,2}\s*\.?(?:\([^\n)]*\))?\s*[~～]\s*(\d{1,2})\s*\.\s*(\d{1,2})\s*\.?", evidence_text
+    ):
+        year, month, day = map(int, match.groups())
+        evidence.add(f"{year:04}-{month:02}-{day:02}")
+    evidence.update("--" + key[5:] for key in list(evidence) if re.fullmatch(r"\d{4}-\d{2}-\d{2}", key))
     supported = [claim for claim in claims if _normalized_claim(claim) in evidence]
     unsupported = [claim for claim in claims if _normalized_claim(claim) not in evidence]
     claim_types = structured_claim_types(claims)
     issues = [f"근거 원문에서 확인되지 않은 값: {claim}" for claim in unsupported]
+    issues.extend(row_claim_issues(answer, results))
     return {
-        "passed": not unsupported,
+        "passed": not issues,
         "method": "structured_claim_verification",
         "display_label": (
-            "수치 근거 검증 통과"
-            if "metric" in claim_types
-            else "금액·날짜·단위 검증 통과"
+            "수치 근거 검증 실패" if issues else
+            "수치 근거 검증 통과" if "metric" in claim_types else "금액·날짜·단위 검증 통과"
         ),
         "claims": claims,
         "claim_types": claim_types,
