@@ -32,6 +32,33 @@ def asks_submissions(question):
     return sufficiency or additional
 
 
+def supplement_submission_evidence(question, initial, knowledge, mode):
+    """Recover an empty search only inside an explicitly selected document.
+
+    Do not lower lexical/semantic gates, scan raw files, or infer a current
+    document from conversational history. Original model/year checks remain
+    downstream of retrieval and cannot be replaced by these section queries.
+    """
+    source = getattr(knowledge, "selected_document_source", None)
+    if initial or not source or not asks_submissions(question):
+        return initial, []
+    from .evidence_scope import MODEL_TAG, YEAR
+    anchors = " ".join(dict.fromkeys(MODEL_TAG.findall(question) + YEAR.findall(question)))
+    combined, trace, seen = [], [], set()
+    for section_query in ("제출 서류 신청 방법", "구비 서류 제출 자료"):
+        query = (anchors + " " + section_query).strip()
+        hits = knowledge.search(query, 3) if mode == "bm25" else knowledge.search(query, 3, mode=mode)
+        added = 0
+        for hit in hits:
+            key = (hit.source, hit.heading, hit.text)
+            if hit.source == source and key not in seen and len(combined) < 6:
+                combined.append(hit)
+                seen.add(key)
+                added += 1
+        trace.append({"query": query, "added_chunks": added, "reason": "selected_submission_empty_search"})
+    return combined, trace
+
+
 def _heading(line):
     return bool(re.match(r"^\s*(?:#{1,6}\s+|\d+\s+)[가-힣A-Za-z]", line))
 

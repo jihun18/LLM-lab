@@ -320,12 +320,14 @@ def rag_response(
     from .requirement_retrieval import supplement_role_evidence, requirement_source_answer
     from .project_facts import supplement_project_evidence, project_source_answer
     from .pdf_facts import pdf_source_answer
+    from .submission_facts import supplement_submission_evidence
     from .evidence_scope import unsupported_query_anchors
-    trace = []
+    results, trace = supplement_submission_evidence(prompt, results, knowledge, search_mode)
     # Frozen-context/model comparison calls grounded_response directly, so
     # follow-up retrieval cannot silently alter their controlled evidence.
     if not unsupported_query_anchors(prompt, results):
-        results, trace = supplement_role_evidence(prompt, results, knowledge, search_mode)
+        results, requirement_trace = supplement_role_evidence(prompt, results, knowledge, search_mode)
+        trace.extend(requirement_trace)
         copied = requirement_source_answer(prompt, results)
         if not copied:
             results, project_trace = supplement_project_evidence(prompt, results, knowledge, search_mode)
@@ -364,6 +366,7 @@ def rag_response(
             "search_mode": search_mode,
             "search_seconds": round(search_seconds, 3),
             "answer": "Wiki에서 관련 근거를 찾지 못했습니다.",
+            "retrieval_followups": trace,
             "sources": [],
             "elapsed_seconds": round(search_seconds, 3),
             "tokens_per_second": None,

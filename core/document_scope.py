@@ -33,6 +33,7 @@ def scoped_knowledge(knowledge, source):
             scoped.document_frequency.update(set(chunk.tokens))
         scoped.average_length = sum(len(c.tokens) for c in scoped.chunks) / len(scoped.chunks)
         scoped.files_indexed = 1
+        scoped.selected_document_source = source
         dates = [c.latest_date for c in scoped.chunks if c.latest_date]
         scoped.latest_date = max(dates) if dates else None
         # Semantic vectors/cache lock stay shared, but only scoped chunks are
