@@ -136,7 +136,9 @@ python rag_evaluation.py --models qwen3:1.7b
 python rag_evaluation.py --models qwen3:1.7b --case-ids verification_states upload_flow
 ```
 
-현재 자동 테스트는 **445개**입니다. 벤치마크 결과는 로컬 `benchmark-results/`에 JSON·CSV·Markdown으로 생성되며 Git에는 포함되지 않습니다.
+현재 자동 테스트는 **450개**입니다. 벤치마크 결과는 로컬 `benchmark-results/`에 JSON·CSV·Markdown으로 생성되며 Git에는 포함되지 않습니다.
+
+[부분 답변 화면](docs/PARTIAL-ANSWER-UI-20261022.md)은 확인한 원문과 근거 부족·충돌 항목을 나누고 ‘질문 전체 미해결’을 명시합니다. 출처·검사 범위·전체 응답은 펼쳐볼 수 있으며, 일반 생성이나 수치 검사를 전체 의미 검증으로 표시하지 않습니다.
 
 [4B·7B 블라인드 선택 비교](docs/BLIND-MODEL-CHOICE-20261016.md)는 새 12문항의 같은 입력으로 모델 답변을 직접 생성하고 A/B 검토표와 모델·시간 공개 파일을 분리합니다. 사람 품질 판정 전에는 자동으로 모델을 추천하거나 삭제하지 않습니다.
 
