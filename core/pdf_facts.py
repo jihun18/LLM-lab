@@ -6,6 +6,7 @@ These are partial copies, not a certification of all requested semantics.
 import re
 
 from .grounding import extract_structured_claims, AMOUNT_CLAIM_PATTERN, DATE_CLAIM_PATTERN
+from .submission_facts import submission_evidence
 
 
 def _compact(text):
@@ -28,7 +29,13 @@ def pdf_source_answer(question, results):
         if source not in used:
             used.append(source)
 
-    if any(word in question for word in ("상금", "포상", "금액")) and re.search(r"몇\s*팀|시상\s*수|수량", question):
+    submissions = submission_evidence(question, results)
+    if submissions is not None:
+        facts, unavailable = submissions
+        for label, value, source in facts:
+            copy(label, value, source)
+        missing.extend(unavailable)
+    elif any(word in question for word in ("상금", "포상", "금액")) and re.search(r"몇\s*팀|시상\s*수|수량", question):
         rows = {}
         for source in results:
             for line in source.text.splitlines():
