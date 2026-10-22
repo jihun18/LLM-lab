@@ -73,3 +73,32 @@ test('CRLF source copy is supported and full original stays unmodified', () => {
 test('only Korean UI labels are present in the presentation script', () => {
   assert.ok(!/[\u3040-\u30ff]/u.test(script));
 });
+
+const noEvidence = '요청한 판단을 뒷받침하는 명시적 근거를 확인하지 못했습니다.\n\n기존 속도표로 USB 이전 후 결과를 보장하지 않습니다.\n\n확인하지 못한 항목:\n- Other의 역할 (검색 근거 부족)\n확인한 항목만 답했으며 질문 전체가 해결된 것은 아닙니다.';
+test('no copied facts gets an insufficient-evidence label, not a partial answer', () => {
+  const p = ui.plan(noEvidence, verification, []);
+  assert.equal(p.kind, 'insufficient'); assert.equal(p.confirmed, '');
+  assert.match(p.label, /근거 부족/); assert.ok(!p.label.includes('부분 답변'));
+  assert.match(p.scope, /확인된 원문 항목이 없습니다/);
+});
+test('known missing footer appears once outside collapsed details; raw is preserved', () => {
+  const out = new Element('div');
+  ui.render(out, noEvidence, verification, []);
+  const visible = out.children.filter(x => x.tag !== 'details').map(flatten).join('\n');
+  assert.equal(visible.split(missing[0]).length - 1, 1);
+  assert.ok(!visible.includes('확인하지 못한 항목:'));
+  assert.match(visible, /USB 이전 후/);
+  assert.equal(out.children.at(-1).children.at(-1).textContent, noEvidence);
+});
+test('unrecognized footer prose must not be silently hidden', () => {
+  const raw = noEvidence + '\n추가 경고를 꼭 읽어주세요.';
+  assert.equal(ui.plan(raw, verification, []).displayText, raw);
+});
+test('missing citations cannot promote a heading imitation to confirmed facts', () => {
+  const p = ui.plan(text, verification, []);
+  assert.equal(p.kind, 'insufficient'); assert.equal(p.confirmed, '');
+});
+test('failed verification keeps its blocked label and full explanation', () => {
+  const p = ui.plan(noEvidence, {...verification, passed: false}, []);
+  assert.equal(p.kind, 'blocked'); assert.equal(p.displayText, noEvidence);
+});

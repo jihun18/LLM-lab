@@ -20,6 +20,11 @@ privAI는 외부 LLM API 없이 Windows PC에서 Ollama 경량 모델을 실행�
 
 ## 현재 구현된 기능
 
+2026-10-22: [사용 질문 10개 후속 개선](docs/PROJECT-FACTS-FOLLOWUP-20261022.md)에서
+표의 대상별 화면·포트 연결, 전체 시간 누락, 부분 답변과 연동 추측 문제를 보완했다.
+모델 모드·프로젝트 요약은 문서 기록과 최신 상태 미확인을 구분한다.
+개발 회귀를 포함한 pytest 499개 통과이며, 새로운 독립 평가 정확도는 아니다.
+
 - Ollama의 1.7B·4B Instruct·양자화 7B Instruct 로컬 추론
 - 실측 결과 기반 빠른·균형·정밀 모델 모드
 - FastAPI REST API와 `privAI.html` 채팅 화면

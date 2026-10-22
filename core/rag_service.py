@@ -309,13 +309,18 @@ def rag_response(
                else knowledge.search(prompt, top_k, mode=search_mode))
     search_seconds = time.perf_counter() - started
     from .requirement_retrieval import supplement_role_evidence, requirement_source_answer
+    from .project_facts import supplement_project_evidence, project_source_answer
     from .evidence_scope import unsupported_query_anchors
     trace = []
     # Frozen-context/model comparison calls grounded_response directly, so
     # follow-up retrieval cannot silently alter their controlled evidence.
-    if results and not unsupported_query_anchors(prompt, results):
+    if not unsupported_query_anchors(prompt, results):
         results, trace = supplement_role_evidence(prompt, results, knowledge, search_mode)
         copied = requirement_source_answer(prompt, results)
+        if not copied:
+            results, project_trace = supplement_project_evidence(prompt, results, knowledge, search_mode)
+            trace.extend(project_trace)
+            copied = project_source_answer(prompt, results)
         if copied:
             answer, used, verification = copied
             elapsed = round(time.perf_counter() - started, 3)

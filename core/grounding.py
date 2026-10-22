@@ -141,7 +141,8 @@ def deterministic_metric_answer(
     question: str, results: list[SearchResult]
 ) -> tuple[str, dict] | None:
     normalized = question.lower().replace(" ", "")
-    compound_markers = ("자동점수", "점수", "이유", "왜", "생략", "역할", "용도")
+    compound_markers = ("자동점수", "점수", "이유", "왜", "생략", "역할", "용도",
+                        "usb", "적용", "결론", "단정", "성능", "연동", "통신", "전체시간")
     asks_speed = any(marker in normalized for marker in ("token/s", "토큰/초", "속도"))
     asks_time = any(marker in normalized for marker in ("평균시간", "몇초"))
     if any(marker in normalized for marker in compound_markers) or (
@@ -155,7 +156,8 @@ def deterministic_metric_answer(
 
     unit = facts[0].unit
     unit_label = "token/s" if unit == "token/s" else "초"
-    metric_label = "평균 생성속도" if unit == "token/s" else "평균 시간"
+    is_average = all("평균" in fact.metric for fact in facts)
+    metric_label = ("평균 " if is_average else "기록된 ") + ("생성속도" if unit == "token/s" else "시간")
     values = [f"{fact.label}가 {fact.display_value} {unit_label}" for fact in facts]
     if len(values) == 1:
         value_text = values[0]
